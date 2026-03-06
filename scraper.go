@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prometheus_collector_bridge
+package prometheuscollectorbridge
 
 import (
 	"context"
@@ -207,11 +207,11 @@ func (s *scraper) convertHistogramInt64(hist metricdata.Histogram[int64], metric
 		dataPoint.SetStartTimestamp(pcommon.Timestamp(dp.StartTime.UnixNano()))
 		dataPoint.SetTimestamp(pcommon.Timestamp(dp.Time.UnixNano()))
 
-		if min, defined := dp.Min.Value(); defined {
-			dataPoint.SetMin(float64(min))
+		if minValue, defined := dp.Min.Value(); defined {
+			dataPoint.SetMin(float64(minValue))
 		}
-		if max, defined := dp.Max.Value(); defined {
-			dataPoint.SetMax(float64(max))
+		if maxValue, defined := dp.Max.Value(); defined {
+			dataPoint.SetMax(float64(maxValue))
 		}
 
 		dataPoint.BucketCounts().FromRaw(dp.BucketCounts)
@@ -232,11 +232,11 @@ func (s *scraper) convertHistogramFloat64(hist metricdata.Histogram[float64], me
 		dataPoint.SetStartTimestamp(pcommon.Timestamp(dp.StartTime.UnixNano()))
 		dataPoint.SetTimestamp(pcommon.Timestamp(dp.Time.UnixNano()))
 
-		if min, defined := dp.Min.Value(); defined {
-			dataPoint.SetMin(min)
+		if minValue, defined := dp.Min.Value(); defined {
+			dataPoint.SetMin(minValue)
 		}
-		if max, defined := dp.Max.Value(); defined {
-			dataPoint.SetMax(max)
+		if maxValue, defined := dp.Max.Value(); defined {
+			dataPoint.SetMax(maxValue)
 		}
 
 		dataPoint.BucketCounts().FromRaw(dp.BucketCounts)
@@ -260,11 +260,11 @@ func (s *scraper) convertExponentialHistogramInt64(hist metricdata.ExponentialHi
 		dataPoint.SetStartTimestamp(pcommon.Timestamp(dp.StartTime.UnixNano()))
 		dataPoint.SetTimestamp(pcommon.Timestamp(dp.Time.UnixNano()))
 
-		if min, defined := dp.Min.Value(); defined {
-			dataPoint.SetMin(float64(min))
+		if minValue, defined := dp.Min.Value(); defined {
+			dataPoint.SetMin(float64(minValue))
 		}
-		if max, defined := dp.Max.Value(); defined {
-			dataPoint.SetMax(float64(max))
+		if maxValue, defined := dp.Max.Value(); defined {
+			dataPoint.SetMax(float64(maxValue))
 		}
 
 		positive := dataPoint.Positive()
@@ -293,11 +293,11 @@ func (s *scraper) convertExponentialHistogramFloat64(hist metricdata.Exponential
 		dataPoint.SetStartTimestamp(pcommon.Timestamp(dp.StartTime.UnixNano()))
 		dataPoint.SetTimestamp(pcommon.Timestamp(dp.Time.UnixNano()))
 
-		if min, defined := dp.Min.Value(); defined {
-			dataPoint.SetMin(min)
+		if minValue, defined := dp.Min.Value(); defined {
+			dataPoint.SetMin(minValue)
 		}
-		if max, defined := dp.Max.Value(); defined {
-			dataPoint.SetMax(max)
+		if maxValue, defined := dp.Max.Value(); defined {
+			dataPoint.SetMax(maxValue)
 		}
 
 		positive := dataPoint.Positive()

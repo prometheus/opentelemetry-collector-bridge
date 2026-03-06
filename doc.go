@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package prometheus_collector_bridge provides a framework for embedding Prometheus exporters
+// Package prometheuscollectorbridge provides a framework for embedding Prometheus exporters
 // as native OpenTelemetry Collector receivers.
 //
 // This package enables Prometheus exporters written in Go to run directly inside
@@ -19,7 +19,7 @@
 //
 // # Overview
 //
-// The prometheus_collector_bridge package provides the core infrastructure for converting
+// The prometheuscollectorbridge package provides the core infrastructure for converting
 // Prometheus exporters into OTel receivers:
 //
 //  1. Config system for exporter-specific configuration with automatic validation
@@ -62,7 +62,7 @@
 //
 // Then create a receiver factory:
 //
-//	factory := prometheus_collector_bridge.NewFactory(
+//	factory := prometheuscollectorbridge.NewFactory(
 //	    component.MustNewType("prometheus/myexporter"),
 //	    &MyExporterLifecycleManager{},
 //	    &MyConfigUnmarshaler{},
@@ -114,4 +114,4 @@
 //
 // The receiver is designed to be thread-safe. The scraping loop runs in its own
 // goroutine and coordinates gracefully with the shutdown process.
-package prometheus_collector_bridge
+package prometheuscollectorbridge

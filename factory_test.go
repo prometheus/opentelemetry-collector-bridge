@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prometheus_collector_bridge
+package prometheuscollectorbridge
 
 import (
 	"context"
@@ -25,7 +25,7 @@ import (
 	"go.opentelemetry.io/collector/receiver/receivertest"
 )
 
-// mockLifecycleManager is a test implementation of ExporterLifecycleManager
+// mockLifecycleManager is a test implementation of ExporterLifecycleManager.
 type mockLifecycleManager struct {
 	startFunc    func(ctx context.Context, cfg Config) (*prometheus.Registry, error)
 	shutdownFunc func(ctx context.Context) error
@@ -45,7 +45,7 @@ func (m *mockLifecycleManager) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// mockConfigUnmarshaler is a test implementation of ConfigUnmarshaler
+// mockConfigUnmarshaler is a test implementation of ConfigUnmarshaler.
 type mockConfigUnmarshaler struct {
 	getConfigStructFunc func() Config
 }
@@ -57,7 +57,7 @@ func (m *mockConfigUnmarshaler) GetConfigStruct() Config {
 	return &mockConfig{}
 }
 
-// testExporterConfig is a test config struct with mapstructure tags
+// testExporterConfig is a test config struct with mapstructure tags.
 type testExporterConfig struct {
 	EnableFeature bool     `mapstructure:"enable_feature"`
 	Timeout       string   `mapstructure:"timeout"`

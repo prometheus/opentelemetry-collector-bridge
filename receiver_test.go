@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prometheus_collector_bridge
+package prometheuscollectorbridge
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 func TestEndToEnd_FullReceiverPipeline(t *testing.T) {
 	shutdownCalled := false
 	lifecycleManager := &mockLifecycleManager{
-		startFunc: func(ctx context.Context, cfg Config) (*prometheus.Registry, error) {
+		startFunc: func(_ context.Context, _ Config) (*prometheus.Registry, error) {
 			reg := prometheus.NewRegistry()
 
 			counter := prometheus.NewCounter(prometheus.CounterOpts{
@@ -46,7 +46,7 @@ func TestEndToEnd_FullReceiverPipeline(t *testing.T) {
 
 			return reg, nil
 		},
-		shutdownFunc: func(ctx context.Context) error {
+		shutdownFunc: func(_ context.Context) error {
 			shutdownCalled = true
 			return nil
 		},
@@ -77,10 +77,7 @@ func TestEndToEnd_FullReceiverPipeline(t *testing.T) {
 	}
 
 	deadline := time.After(5 * time.Second)
-	for {
-		if sink.DataPointCount() > 0 {
-			break
-		}
+	for sink.DataPointCount() == 0 {
 		select {
 		case <-deadline:
 			t.Fatal("timed out waiting for metrics to arrive in sink")
@@ -112,7 +109,7 @@ func TestEndToEnd_FullReceiverPipeline(t *testing.T) {
 
 func TestEndToEnd_MultipleScrapes(t *testing.T) {
 	lifecycleManager := &mockLifecycleManager{
-		startFunc: func(ctx context.Context, cfg Config) (*prometheus.Registry, error) {
+		startFunc: func(_ context.Context, _ Config) (*prometheus.Registry, error) {
 			reg := prometheus.NewRegistry()
 			gauge := prometheus.NewGauge(prometheus.GaugeOpts{
 				Name: "scrape_test_metric",
@@ -145,10 +142,7 @@ func TestEndToEnd_MultipleScrapes(t *testing.T) {
 	}
 
 	deadline := time.After(5 * time.Second)
-	for {
-		if len(sink.AllMetrics()) >= 3 {
-			break
-		}
+	for len(sink.AllMetrics()) < 3 {
 		select {
 		case <-deadline:
 			t.Fatalf("timed out waiting for 3 scrapes, got %d", len(sink.AllMetrics()))

@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prometheus_collector_bridge
+package prometheuscollectorbridge
 
 import (
 	"context"
@@ -102,7 +102,7 @@ func createMetricsReceiver(
 	unmarshaler ConfigUnmarshaler,
 ) receiver.CreateMetricsFunc {
 	return func(
-		ctx context.Context,
+		_ context.Context,
 		set receiver.Settings,
 		cfg component.Config,
 		consumer consumer.Metrics,

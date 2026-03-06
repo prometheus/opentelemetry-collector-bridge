@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prometheus_collector_bridge
+package prometheuscollectorbridge
 
 import (
 	"context"
@@ -55,7 +55,7 @@ func newPrometheusReceiver(
 }
 
 // Start begins the receiver's operation.
-func (r *prometheusReceiver) Start(ctx context.Context, host component.Host) error {
+func (r *prometheusReceiver) Start(ctx context.Context, _ component.Host) error {
 	r.settings.Logger.Info("Starting Prometheus exporter receiver")
 
 	exporterConfig := r.config.GetExporterConfig()
