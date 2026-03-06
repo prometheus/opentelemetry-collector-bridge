@@ -1,0 +1,51 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "separateMultipleMajor": true,
+  "baseBranchPatterns": [
+    "main"
+  ],
+  "postUpdateOptions": [
+    "gomodTidy",
+    "gomodUpdateImportPaths"
+  ],
+  "schedule": [
+    "* * 21 * *"
+  ],
+  "timezone": "UTC",
+  "prConcurrentLimit": 20,
+  "prHourlyLimit": 5,
+  "packageRules": [
+    {
+      "description": "Group OpenTelemetry Go dependencies",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "go.opentelemetry.io/**"
+      ],
+      "groupName": "OpenTelemetry Go dependencies"
+    },
+    {
+      "description": "Group Prometheus Go dependencies",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "github.com/prometheus/**"
+      ],
+      "groupName": "Prometheus Go dependencies"
+    }
+  ],
+  "branchPrefix": "deps-update/",
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": [
+      "security-update"
+    ]
+  },
+  "osvVulnerabilityAlerts": true,
+  "dependencyDashboardApproval": false
+}
