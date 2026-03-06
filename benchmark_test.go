@@ -201,8 +201,8 @@ func BenchmarkScrapeAndExport(b *testing.B) {
 		benchmarkMetricTypeHistograms,
 		benchmarkMetricTypeMixed,
 	}
-	metricCounts := []int{10, 100, 1000}
-	cardinalities := []int{10, 100}
+	metricCounts := []int{100}
+	cardinalities := []int{10}
 
 	for _, metricType := range metricTypes {
 		metricType := metricType

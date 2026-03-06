@@ -27,7 +27,7 @@ jobs:
         with:
           go-version: 1.25.x
       - name: Run benchmarks
-        run: go test -run=^$ -bench=BenchmarkScrapeAndExport -benchmem ./... | tee output.txt
+        run: go test -run=^$ -bench=BenchmarkScrapeAndExport -benchmem -benchtime=10s ./... | tee output.txt
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1.21.0
         with:
