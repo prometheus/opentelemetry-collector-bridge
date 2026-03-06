@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772810599437,
+  "lastUpdate": 1772810847658,
   "repoUrl": "https://github.com/prometheus/opentelemetry-collector-bridge",
   "entries": {
     "OpenTelemetry Collector Bridge Benchmarks": [
@@ -1342,6 +1342,678 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkScrapeAndExport/mixed/metrics_10000/cardinality_100 - allocs/op",
             "value": 20277297,
+            "unit": "allocs/op",
+            "extra": "1 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arthursens2005@gmail.com",
+            "name": "Arthur Silva Sens",
+            "username": "ArthurSens"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a8269fee035b22ea642802c963e93f72700cfeed",
+          "message": "Merge pull request #12 from prometheus/deps-update/actions-checkout-5.x\n\nUpdate actions/checkout action to v5",
+          "timestamp": "2026-03-06T12:26:16-03:00",
+          "tree_id": "a1831d5593452da0f9005741bd25eb8b767bdb9e",
+          "url": "https://github.com/prometheus/opentelemetry-collector-bridge/commit/a8269fee035b22ea642802c963e93f72700cfeed"
+        },
+        "date": 1772810847195,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_1",
+            "value": 152666,
+            "unit": "ns/op\t  150750 B/op\t    1851 allocs/op",
+            "extra": "7502 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_1 - ns/op",
+            "value": 152666,
+            "unit": "ns/op",
+            "extra": "7502 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_1 - B/op",
+            "value": 150750,
+            "unit": "B/op",
+            "extra": "7502 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_1 - allocs/op",
+            "value": 1851,
+            "unit": "allocs/op",
+            "extra": "7502 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10",
+            "value": 1258709,
+            "unit": "ns/op\t  829418 B/op\t   12062 allocs/op",
+            "extra": "937 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - ns/op",
+            "value": 1258709,
+            "unit": "ns/op",
+            "extra": "937 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - B/op",
+            "value": 829418,
+            "unit": "B/op",
+            "extra": "937 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - allocs/op",
+            "value": 12062,
+            "unit": "allocs/op",
+            "extra": "937 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_100",
+            "value": 13454805,
+            "unit": "ns/op\t 7095386 B/op\t  102721 allocs/op",
+            "extra": "82 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_100 - ns/op",
+            "value": 13454805,
+            "unit": "ns/op",
+            "extra": "82 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_100 - B/op",
+            "value": 7095386,
+            "unit": "B/op",
+            "extra": "82 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_100 - allocs/op",
+            "value": 102721,
+            "unit": "allocs/op",
+            "extra": "82 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_1000/cardinality_1",
+            "value": 1627303,
+            "unit": "ns/op\t 1200743 B/op\t   18070 allocs/op",
+            "extra": "772 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_1000/cardinality_1 - ns/op",
+            "value": 1627303,
+            "unit": "ns/op",
+            "extra": "772 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_1000/cardinality_1 - B/op",
+            "value": 1200743,
+            "unit": "B/op",
+            "extra": "772 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_1000/cardinality_1 - allocs/op",
+            "value": 18070,
+            "unit": "allocs/op",
+            "extra": "772 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_1000/cardinality_10",
+            "value": 13827692,
+            "unit": "ns/op\t 7805915 B/op\t  120129 allocs/op",
+            "extra": "86 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_1000/cardinality_10 - ns/op",
+            "value": 13827692,
+            "unit": "ns/op",
+            "extra": "86 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_1000/cardinality_10 - B/op",
+            "value": 7805915,
+            "unit": "B/op",
+            "extra": "86 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_1000/cardinality_10 - allocs/op",
+            "value": 120129,
+            "unit": "allocs/op",
+            "extra": "86 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_1000/cardinality_100",
+            "value": 166175642,
+            "unit": "ns/op\t69431779 B/op\t 1026580 allocs/op",
+            "extra": "7 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_1000/cardinality_100 - ns/op",
+            "value": 166175642,
+            "unit": "ns/op",
+            "extra": "7 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_1000/cardinality_100 - B/op",
+            "value": 69431779,
+            "unit": "B/op",
+            "extra": "7 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_1000/cardinality_100 - allocs/op",
+            "value": 1026580,
+            "unit": "allocs/op",
+            "extra": "7 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_10000/cardinality_1",
+            "value": 19542294,
+            "unit": "ns/op\t12975050 B/op\t  180172 allocs/op",
+            "extra": "60 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_10000/cardinality_1 - ns/op",
+            "value": 19542294,
+            "unit": "ns/op",
+            "extra": "60 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_10000/cardinality_1 - B/op",
+            "value": 12975050,
+            "unit": "B/op",
+            "extra": "60 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_10000/cardinality_1 - allocs/op",
+            "value": 180172,
+            "unit": "allocs/op",
+            "extra": "60 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_10000/cardinality_10",
+            "value": 171535737,
+            "unit": "ns/op\t77992917 B/op\t 1200623 allocs/op",
+            "extra": "6 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_10000/cardinality_10 - ns/op",
+            "value": 171535737,
+            "unit": "ns/op",
+            "extra": "6 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_10000/cardinality_10 - B/op",
+            "value": 77992917,
+            "unit": "B/op",
+            "extra": "6 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_10000/cardinality_10 - allocs/op",
+            "value": 1200623,
+            "unit": "allocs/op",
+            "extra": "6 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_10000/cardinality_100",
+            "value": 1869103790,
+            "unit": "ns/op\t723588200 B/op\t10268283 allocs/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_10000/cardinality_100 - ns/op",
+            "value": 1869103790,
+            "unit": "ns/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_10000/cardinality_100 - B/op",
+            "value": 723588200,
+            "unit": "B/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_10000/cardinality_100 - allocs/op",
+            "value": 10268283,
+            "unit": "allocs/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_1",
+            "value": 291602,
+            "unit": "ns/op\t  321146 B/op\t    5051 allocs/op",
+            "extra": "3735 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_1 - ns/op",
+            "value": 291602,
+            "unit": "ns/op",
+            "extra": "3735 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_1 - B/op",
+            "value": 321146,
+            "unit": "B/op",
+            "extra": "3735 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_1 - allocs/op",
+            "value": 5051,
+            "unit": "allocs/op",
+            "extra": "3735 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10",
+            "value": 2689470,
+            "unit": "ns/op\t 2437399 B/op\t   42362 allocs/op",
+            "extra": "441 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - ns/op",
+            "value": 2689470,
+            "unit": "ns/op",
+            "extra": "441 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - B/op",
+            "value": 2437399,
+            "unit": "B/op",
+            "extra": "441 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - allocs/op",
+            "value": 42362,
+            "unit": "allocs/op",
+            "extra": "441 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_100",
+            "value": 31382059,
+            "unit": "ns/op\t23109802 B/op\t  403021 allocs/op",
+            "extra": "34 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_100 - ns/op",
+            "value": 31382059,
+            "unit": "ns/op",
+            "extra": "34 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_100 - B/op",
+            "value": 23109802,
+            "unit": "B/op",
+            "extra": "34 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_100 - allocs/op",
+            "value": 403021,
+            "unit": "allocs/op",
+            "extra": "34 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_1000/cardinality_1",
+            "value": 3384572,
+            "unit": "ns/op\t 2904745 B/op\t   50070 allocs/op",
+            "extra": "355 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_1000/cardinality_1 - ns/op",
+            "value": 3384572,
+            "unit": "ns/op",
+            "extra": "355 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_1000/cardinality_1 - B/op",
+            "value": 2904745,
+            "unit": "B/op",
+            "extra": "355 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_1000/cardinality_1 - allocs/op",
+            "value": 50070,
+            "unit": "allocs/op",
+            "extra": "355 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_1000/cardinality_10",
+            "value": 31566181,
+            "unit": "ns/op\t23885928 B/op\t  423129 allocs/op",
+            "extra": "38 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_1000/cardinality_10 - ns/op",
+            "value": 31566181,
+            "unit": "ns/op",
+            "extra": "38 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_1000/cardinality_10 - B/op",
+            "value": 23885928,
+            "unit": "B/op",
+            "extra": "38 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_1000/cardinality_10 - allocs/op",
+            "value": 423129,
+            "unit": "allocs/op",
+            "extra": "38 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_1000/cardinality_100",
+            "value": 354433402,
+            "unit": "ns/op\t229575810 B/op\t 4029580 allocs/op",
+            "extra": "3 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_1000/cardinality_100 - ns/op",
+            "value": 354433402,
+            "unit": "ns/op",
+            "extra": "3 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_1000/cardinality_100 - B/op",
+            "value": 229575810,
+            "unit": "B/op",
+            "extra": "3 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_1000/cardinality_100 - allocs/op",
+            "value": 4029580,
+            "unit": "allocs/op",
+            "extra": "3 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_10000/cardinality_1",
+            "value": 43822535,
+            "unit": "ns/op\t30015073 B/op\t  500172 allocs/op",
+            "extra": "28 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_10000/cardinality_1 - ns/op",
+            "value": 43822535,
+            "unit": "ns/op",
+            "extra": "28 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_10000/cardinality_1 - B/op",
+            "value": 30015073,
+            "unit": "B/op",
+            "extra": "28 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_10000/cardinality_1 - allocs/op",
+            "value": 500172,
+            "unit": "allocs/op",
+            "extra": "28 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_10000/cardinality_10",
+            "value": 368642802,
+            "unit": "ns/op\t238792973 B/op\t 4230623 allocs/op",
+            "extra": "3 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_10000/cardinality_10 - ns/op",
+            "value": 368642802,
+            "unit": "ns/op",
+            "extra": "3 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_10000/cardinality_10 - B/op",
+            "value": 238792973,
+            "unit": "B/op",
+            "extra": "3 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_10000/cardinality_10 - allocs/op",
+            "value": 4230623,
+            "unit": "allocs/op",
+            "extra": "3 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_10000/cardinality_100",
+            "value": 4115574997,
+            "unit": "ns/op\t2325078072 B/op\t40298352 allocs/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_10000/cardinality_100 - ns/op",
+            "value": 4115574997,
+            "unit": "ns/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_10000/cardinality_100 - B/op",
+            "value": 2325078072,
+            "unit": "B/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_10000/cardinality_100 - allocs/op",
+            "value": 40298352,
+            "unit": "allocs/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_1",
+            "value": 211260,
+            "unit": "ns/op\t  205921 B/op\t    2907 allocs/op",
+            "extra": "5112 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_1 - ns/op",
+            "value": 211260,
+            "unit": "ns/op",
+            "extra": "5112 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_1 - B/op",
+            "value": 205921,
+            "unit": "B/op",
+            "extra": "5112 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_1 - allocs/op",
+            "value": 2907,
+            "unit": "allocs/op",
+            "extra": "5112 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10",
+            "value": 1904335,
+            "unit": "ns/op\t 1354240 B/op\t   22061 allocs/op",
+            "extra": "626 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - ns/op",
+            "value": 1904335,
+            "unit": "ns/op",
+            "extra": "626 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - B/op",
+            "value": 1354240,
+            "unit": "B/op",
+            "extra": "626 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - allocs/op",
+            "value": 22061,
+            "unit": "allocs/op",
+            "extra": "626 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_100",
+            "value": 20386734,
+            "unit": "ns/op\t12326806 B/op\t  201820 allocs/op",
+            "extra": "52 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_100 - ns/op",
+            "value": 20386734,
+            "unit": "ns/op",
+            "extra": "52 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_100 - B/op",
+            "value": 12326806,
+            "unit": "B/op",
+            "extra": "52 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_100 - allocs/op",
+            "value": 201820,
+            "unit": "allocs/op",
+            "extra": "52 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_1000/cardinality_1",
+            "value": 2165822,
+            "unit": "ns/op\t 1757504 B/op\t   28726 allocs/op",
+            "extra": "556 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_1000/cardinality_1 - ns/op",
+            "value": 2165822,
+            "unit": "ns/op",
+            "extra": "556 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_1000/cardinality_1 - B/op",
+            "value": 1757504,
+            "unit": "B/op",
+            "extra": "556 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_1000/cardinality_1 - allocs/op",
+            "value": 28726,
+            "unit": "allocs/op",
+            "extra": "556 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_1000/cardinality_10",
+            "value": 20018984,
+            "unit": "ns/op\t13101977 B/op\t  221028 allocs/op",
+            "extra": "58 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_1000/cardinality_10 - ns/op",
+            "value": 20018984,
+            "unit": "ns/op",
+            "extra": "58 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_1000/cardinality_10 - B/op",
+            "value": 13101977,
+            "unit": "B/op",
+            "extra": "58 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_1000/cardinality_10 - allocs/op",
+            "value": 221028,
+            "unit": "allocs/op",
+            "extra": "58 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_1000/cardinality_100",
+            "value": 233006076,
+            "unit": "ns/op\t122221604 B/op\t 2026579 allocs/op",
+            "extra": "5 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_1000/cardinality_100 - ns/op",
+            "value": 233006076,
+            "unit": "ns/op",
+            "extra": "5 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_1000/cardinality_100 - B/op",
+            "value": 122221604,
+            "unit": "B/op",
+            "extra": "5 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_1000/cardinality_100 - allocs/op",
+            "value": 2026579,
+            "unit": "allocs/op",
+            "extra": "5 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_10000/cardinality_1",
+            "value": 28051840,
+            "unit": "ns/op\t18547831 B/op\t  286828 allocs/op",
+            "extra": "42 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_10000/cardinality_1 - ns/op",
+            "value": 28051840,
+            "unit": "ns/op",
+            "extra": "42 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_10000/cardinality_1 - B/op",
+            "value": 18547831,
+            "unit": "B/op",
+            "extra": "42 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_10000/cardinality_1 - allocs/op",
+            "value": 286828,
+            "unit": "allocs/op",
+            "extra": "42 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_10000/cardinality_10",
+            "value": 250669580,
+            "unit": "ns/op\t131001188 B/op\t 2210524 allocs/op",
+            "extra": "4 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_10000/cardinality_10 - ns/op",
+            "value": 250669580,
+            "unit": "ns/op",
+            "extra": "4 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_10000/cardinality_10 - B/op",
+            "value": 131001188,
+            "unit": "B/op",
+            "extra": "4 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_10000/cardinality_10 - allocs/op",
+            "value": 2210524,
+            "unit": "allocs/op",
+            "extra": "4 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_10000/cardinality_100",
+            "value": 2838298557,
+            "unit": "ns/op\t1252110808 B/op\t20277309 allocs/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_10000/cardinality_100 - ns/op",
+            "value": 2838298557,
+            "unit": "ns/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_10000/cardinality_100 - B/op",
+            "value": 1252110808,
+            "unit": "B/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_10000/cardinality_100 - allocs/op",
+            "value": 20277309,
             "unit": "allocs/op",
             "extra": "1 times\n4 procs"
           }
