@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prometheus_collector_bridge
+package prometheuscollectorbridge
 
 import (
 	"errors"
@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-// mockConfig is a test implementation of the Config interface
+// mockConfig is a test implementation of the Config interface.
 type mockConfig struct {
 	validateFunc func() error
 }
