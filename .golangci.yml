@@ -1,0 +1,97 @@
+formatters:
+  enable:
+    - gci
+    - gofumpt
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/prometheus/opentelemetry-collector-bridge)
+    gofumpt:
+      extra-rules: true
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+linters:
+  # Keep this list sorted alphabetically
+  enable:
+    - depguard
+    - errorlint
+    - exptostd
+    - gocritic
+    - godot
+    - loggercheck
+    - misspell
+    - nilnesserr
+    # TODO: Enable once https://github.com/golangci/golangci-lint/issues/3228 is fixed.
+    # - nolintlint
+    - perfsprint
+    - predeclared
+    - revive
+    - sloglint
+    - testifylint
+    - unconvert
+    - unused
+    - usestdlibvars
+    - whitespace
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: sync/atomic
+              desc: Use go.uber.org/atomic instead of sync/atomic
+            - pkg: github.com/stretchr/testify/assert
+              desc: Use github.com/stretchr/testify/require instead of github.com/stretchr/testify/assert
+            - pkg: io/ioutil
+              desc: Use corresponding 'os' or 'io' functions instead.
+            - pkg: github.com/pkg/errors
+              desc: Use 'errors' or 'fmt' instead of github.com/pkg/errors
+            - pkg: golang.org/x/exp/slices
+              desc: Use 'slices' instead.
+    perfsprint:
+      errorf: true
+    revive:
+      rules:
+        - name: blank-imports
+        - name: comment-spacings
+        - name: context-as-argument
+          arguments:
+            - allowTypesBefore: '*testing.T,testing.TB'
+        - name: context-keys-type
+        - name: dot-imports
+        - name: early-return
+          arguments:
+            - preserveScope
+        - name: empty-block
+          disabled: true
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: exported
+        - name: increment-decrement
+        - name: indent-error-flow
+          arguments:
+            - preserveScope
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+          arguments:
+            - preserveScope
+        - name: time-naming
+        - name: unexported-return
+        - name: unreachable-code
+        - name: unused-parameter
+        - name: var-declaration
+        - name: var-naming
+    testifylint:
+      disable:
+        - float-compare
+        - go-require
+      enable-all: true
+run:
+  timeout: 15m
+version: "2"
