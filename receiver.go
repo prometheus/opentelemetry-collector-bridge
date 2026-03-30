@@ -16,12 +16,12 @@ package prometheuscollectorbridge
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/receiver"
+	scraperhelper "go.opentelemetry.io/collector/scraper/scraperhelper"
 	"go.uber.org/zap"
 )
 
@@ -32,10 +32,9 @@ type prometheusReceiver struct {
 	settings         receiver.Settings
 	lifecycleManager ExporterLifecycleManager
 	scraper          *scraper
+	controller       receiver.Metrics
 
 	registry *prometheus.Registry
-	cancel   context.CancelFunc
-	done     chan struct{}
 }
 
 // newPrometheusReceiver creates a new Prometheus exporter receiver.
@@ -50,12 +49,11 @@ func newPrometheusReceiver(
 		consumer:         consumer,
 		settings:         settings,
 		lifecycleManager: lifecycleManager,
-		done:             make(chan struct{}),
 	}
 }
 
 // Start begins the receiver's operation.
-func (r *prometheusReceiver) Start(ctx context.Context, _ component.Host) error {
+func (r *prometheusReceiver) Start(ctx context.Context, host component.Host) error {
 	r.settings.Logger.Info("Starting Prometheus exporter receiver")
 
 	exporterConfig := r.config.GetExporterConfig()
@@ -71,26 +69,28 @@ func (r *prometheusReceiver) Start(ctx context.Context, _ component.Host) error 
 		r.settings.Logger,
 	)
 
-	ctx, cancel := context.WithCancel(ctx)
-	r.cancel = cancel
-
-	go r.scrapeLoop(ctx)
+	ctrl, err := scraperhelper.NewMetricsController(
+		&scraperhelper.ControllerConfig{CollectionInterval: r.config.ScrapeInterval},
+		r.settings,
+		r.consumer,
+		scraperhelper.AddMetricsScraper(r.settings.ID.Type(), r.scraper),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create scraper controller: %w", err)
+	}
+	r.controller = ctrl
 
 	r.settings.Logger.Info("Prometheus exporter receiver started successfully")
-	return nil
+	return r.controller.Start(ctx, host)
 }
 
 // Shutdown stops the receiver's operation.
 func (r *prometheusReceiver) Shutdown(ctx context.Context) error {
 	r.settings.Logger.Info("Shutting down Prometheus exporter receiver")
 
-	if r.cancel != nil {
-		r.cancel()
-		select {
-		case <-r.done:
-			r.settings.Logger.Debug("Scrape loop stopped")
-		case <-ctx.Done():
-			r.settings.Logger.Warn("Context cancelled before scrape loop finished")
+	if r.controller != nil {
+		if err := r.controller.Shutdown(ctx); err != nil {
+			return fmt.Errorf("failed to shutdown scraper controller: %w", err)
 		}
 	}
 
@@ -102,43 +102,5 @@ func (r *prometheusReceiver) Shutdown(ctx context.Context) error {
 	}
 
 	r.settings.Logger.Info("Prometheus exporter receiver shut down successfully")
-	return nil
-}
-
-func (r *prometheusReceiver) scrapeLoop(ctx context.Context) {
-	defer close(r.done)
-
-	ticker := time.NewTicker(r.config.ScrapeInterval)
-	defer ticker.Stop()
-
-	if err := r.scrapeAndExport(ctx); err != nil {
-		r.settings.Logger.Error("Initial scrape failed", zap.Error(err))
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			r.settings.Logger.Debug("Scrape loop context cancelled")
-			return
-		case <-ticker.C:
-			if err := r.scrapeAndExport(ctx); err != nil {
-				r.settings.Logger.Error("Scrape failed", zap.Error(err))
-			}
-		}
-	}
-}
-
-func (r *prometheusReceiver) scrapeAndExport(ctx context.Context) error {
-	metrics, err := r.scraper.Scrape(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to scrape metrics: %w", err)
-	}
-
-	if err := r.consumer.ConsumeMetrics(ctx, metrics); err != nil {
-		return fmt.Errorf("failed to consume metrics: %w", err)
-	}
-
-	r.settings.Logger.Debug("Metrics scraped and exported")
-
 	return nil
 }
