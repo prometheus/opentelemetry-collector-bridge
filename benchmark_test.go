@@ -21,7 +21,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer/consumertest"
-	"go.opentelemetry.io/collector/receiver/receivertest"
 	"go.uber.org/zap"
 )
 
@@ -217,18 +216,19 @@ func BenchmarkScrapeAndExport(b *testing.B) {
 
 						b.Run(fmt.Sprintf("cardinality_%d", cardinality), func(b *testing.B) {
 							registry := setupRegistry(b, metricType, metricCount, cardinality)
-							receiver := &prometheusReceiver{
-								consumer: consumertest.NewNop(),
-								settings: receivertest.NewNopSettings(receiverType),
-								scraper:  newScraper(registry, receiverType, zap.NewNop()),
-							}
+							consumer := consumertest.NewNop()
+							s := newScraper(registry, receiverType, zap.NewNop())
 
 							b.ReportAllocs()
 							b.ResetTimer()
 
 							for i := 0; i < b.N; i++ {
-								if err := receiver.scrapeAndExport(ctx); err != nil {
-									b.Fatalf("scrapeAndExport() failed: %v", err)
+								metrics, err := s.ScrapeMetrics(ctx)
+								if err != nil {
+									b.Fatalf("ScrapeMetrics() failed: %v", err)
+								}
+								if err := consumer.ConsumeMetrics(ctx, metrics); err != nil {
+									b.Fatalf("ConsumeMetrics() failed: %v", err)
 								}
 							}
 						})

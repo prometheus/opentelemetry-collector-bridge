@@ -27,7 +27,7 @@ func TestScraper_EmptyRegistry(t *testing.T) {
 	registry := prometheus.NewRegistry()
 	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
 
-	metrics, err := s.Scrape(context.Background())
+	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
 		t.Fatalf("Scrape() returned unexpected error: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestScraper_ResourceAttributes(t *testing.T) {
 	receiverType := component.MustNewType("myexporter")
 	s := newScraper(registry, receiverType, zap.NewNop())
 
-	metrics, err := s.Scrape(context.Background())
+	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
 		t.Fatalf("Scrape() returned unexpected error: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestScraper_GaugeConversion(t *testing.T) {
 	}
 
 	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
-	metrics, err := s.Scrape(context.Background())
+	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
 		t.Fatalf("Scrape() returned unexpected error: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestScraper_CounterConversion(t *testing.T) {
 	counter.WithLabelValues("GET", "404").Add(3)
 
 	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
-	metrics, err := s.Scrape(context.Background())
+	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
 		t.Fatalf("Scrape() returned unexpected error: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestScraper_HistogramConversion(t *testing.T) {
 	histogram.WithLabelValues("/health").Observe(0.001)
 
 	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
-	metrics, err := s.Scrape(context.Background())
+	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
 		t.Fatalf("Scrape() returned unexpected error: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestScraper_ExponentialHistogramConversion(t *testing.T) {
 	histogram.Observe(2.5)
 
 	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
-	metrics, err := s.Scrape(context.Background())
+	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
 		t.Fatalf("Scrape() returned unexpected error: %v", err)
 	}
@@ -331,7 +331,7 @@ func TestScraper_SummaryConversion(t *testing.T) {
 	}
 
 	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
-	metrics, err := s.Scrape(context.Background())
+	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
 		t.Fatalf("Scrape() returned unexpected error: %v", err)
 	}
@@ -384,7 +384,7 @@ func TestScraper_ScopeMetadata(t *testing.T) {
 	gauge.Set(1)
 
 	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
-	metrics, err := s.Scrape(context.Background())
+	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
 		t.Fatalf("Scrape() returned unexpected error: %v", err)
 	}

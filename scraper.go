@@ -52,7 +52,19 @@ func newScraper(
 	}
 }
 
-func (s *scraper) Scrape(ctx context.Context) (pmetric.Metrics, error) {
+// Start implements component.Component. No initialization is needed.
+func (s *scraper) Start(_ context.Context, _ component.Host) error {
+	return nil
+}
+
+// Shutdown implements component.Component. No cleanup is needed.
+func (s *scraper) Shutdown(_ context.Context) error {
+	return nil
+}
+
+// ScrapeMetrics collects metrics from the Prometheus registry and converts them
+// to OpenTelemetry pmetric.Metrics format.
+func (s *scraper) ScrapeMetrics(ctx context.Context) (pmetric.Metrics, error) {
 	s.logger.Debug("Scraping metrics")
 
 	scopeMetrics, err := s.producer.Produce(ctx)
