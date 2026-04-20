@@ -22,13 +22,16 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/component/componenttest"
 	"go.opentelemetry.io/collector/consumer/consumertest"
+	"go.opentelemetry.io/collector/receiver"
 	"go.opentelemetry.io/collector/receiver/receivertest"
 )
 
 func TestEndToEnd_FullReceiverPipeline(t *testing.T) {
 	shutdownCalled := false
+	var startID, shutdownID component.ID
 	lifecycleManager := &mockLifecycleManager{
-		startFunc: func(_ context.Context, _ Config) (*prometheus.Registry, error) {
+		startFunc: func(_ context.Context, set receiver.Settings, _ Config) (*prometheus.Registry, error) {
+			startID = set.ID
 			reg := prometheus.NewRegistry()
 
 			counter := prometheus.NewCounter(prometheus.CounterOpts{
@@ -46,7 +49,8 @@ func TestEndToEnd_FullReceiverPipeline(t *testing.T) {
 
 			return reg, nil
 		},
-		shutdownFunc: func(_ context.Context) error {
+		shutdownFunc: func(_ context.Context, set receiver.Settings) error {
+			shutdownID = set.ID
 			shutdownCalled = true
 			return nil
 		},
@@ -105,11 +109,17 @@ func TestEndToEnd_FullReceiverPipeline(t *testing.T) {
 	if !shutdownCalled {
 		t.Error("lifecycle manager Shutdown() was not called")
 	}
+	if startID != set.ID {
+		t.Errorf("Start() settings ID = %q, want %q", startID, set.ID)
+	}
+	if shutdownID != set.ID {
+		t.Errorf("Shutdown() settings ID = %q, want %q", shutdownID, set.ID)
+	}
 }
 
 func TestEndToEnd_MultipleScrapes(t *testing.T) {
 	lifecycleManager := &mockLifecycleManager{
-		startFunc: func(_ context.Context, _ Config) (*prometheus.Registry, error) {
+		startFunc: func(_ context.Context, _ receiver.Settings, _ Config) (*prometheus.Registry, error) {
 			reg := prometheus.NewRegistry()
 			gauge := prometheus.NewGauge(prometheus.GaugeOpts{
 				Name: "scrape_test_metric",

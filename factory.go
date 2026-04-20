@@ -29,10 +29,10 @@ import (
 type ExporterLifecycleManager interface {
 	// Start sets up the exporter and returns a prometheus.Registry
 	// containing all the metrics collectors.
-	Start(ctx context.Context, exporterConfig Config) (*prometheus.Registry, error)
+	Start(ctx context.Context, set receiver.Settings, exporterConfig Config) (*prometheus.Registry, error)
 
 	// Shutdown is used to release resources when the receiver is shutting down.
-	Shutdown(ctx context.Context) error
+	Shutdown(ctx context.Context, set receiver.Settings) error
 }
 
 // ConfigUnmarshaler is the interface used to unmarshal the exporter-specific

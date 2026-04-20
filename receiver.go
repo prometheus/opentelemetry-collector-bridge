@@ -57,7 +57,7 @@ func (r *prometheusReceiver) Start(ctx context.Context, host component.Host) err
 	r.settings.Logger.Info("Starting Prometheus exporter receiver")
 
 	exporterConfig := r.config.GetExporterConfig()
-	registry, err := r.lifecycleManager.Start(ctx, exporterConfig)
+	registry, err := r.lifecycleManager.Start(ctx, r.settings, exporterConfig)
 	if err != nil {
 		return fmt.Errorf("failed to start exporter: %w", err)
 	}
@@ -95,7 +95,7 @@ func (r *prometheusReceiver) Shutdown(ctx context.Context) error {
 	}
 
 	if r.lifecycleManager != nil {
-		if err := r.lifecycleManager.Shutdown(ctx); err != nil {
+		if err := r.lifecycleManager.Shutdown(ctx, r.settings); err != nil {
 			r.settings.Logger.Error("Failed to shutdown exporter", zap.Error(err))
 			return fmt.Errorf("failed to shutdown exporter: %w", err)
 		}

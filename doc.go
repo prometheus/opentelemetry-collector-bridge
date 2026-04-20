@@ -38,11 +38,11 @@
 //	    // exporter state
 //	}
 //
-//	func (i *MyExporterLifecycleManager) Start(ctx context.Context, cfg Config) (*prometheus.Registry, error) {
+//	func (i *MyExporterLifecycleManager) Start(ctx context.Context, set receiver.Settings, cfg Config) (*prometheus.Registry, error) {
 //	    // Start your exporter and return its registry
 //	}
 //
-//	func (i *MyExporterLifecycleManager) Shutdown(ctx context.Context) error {
+//	func (i *MyExporterLifecycleManager) Shutdown(ctx context.Context, set receiver.Settings) error {
 //	    // Clean up resources
 //	}
 //
