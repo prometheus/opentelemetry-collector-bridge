@@ -29,7 +29,7 @@ import (
 // mockLifecycleManager is a test implementation of ExporterLifecycleManager.
 type mockLifecycleManager struct {
 	startFunc    func(ctx context.Context, set receiver.Settings, cfg Config) (*prometheus.Registry, error)
-	shutdownFunc func(ctx context.Context, set receiver.Settings) error
+	shutdownFunc func(ctx context.Context) error
 }
 
 func (m *mockLifecycleManager) Start(ctx context.Context, set receiver.Settings, cfg Config) (*prometheus.Registry, error) {
@@ -39,9 +39,9 @@ func (m *mockLifecycleManager) Start(ctx context.Context, set receiver.Settings,
 	return prometheus.NewRegistry(), nil
 }
 
-func (m *mockLifecycleManager) Shutdown(ctx context.Context, set receiver.Settings) error {
+func (m *mockLifecycleManager) Shutdown(ctx context.Context) error {
 	if m.shutdownFunc != nil {
-		return m.shutdownFunc(ctx, set)
+		return m.shutdownFunc(ctx)
 	}
 	return nil
 }

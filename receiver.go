@@ -95,7 +95,7 @@ func (r *prometheusReceiver) Shutdown(ctx context.Context) error {
 	}
 
 	if r.lifecycleManager != nil {
-		if err := r.lifecycleManager.Shutdown(ctx, r.settings); err != nil {
+		if err := r.lifecycleManager.Shutdown(ctx); err != nil {
 			r.settings.Logger.Error("Failed to shutdown exporter", zap.Error(err))
 			return fmt.Errorf("failed to shutdown exporter: %w", err)
 		}

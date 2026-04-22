@@ -32,7 +32,9 @@ type ExporterLifecycleManager interface {
 	Start(ctx context.Context, set receiver.Settings, exporterConfig Config) (*prometheus.Registry, error)
 
 	// Shutdown is used to release resources when the receiver is shutting down.
-	Shutdown(ctx context.Context, set receiver.Settings) error
+	// Implementations that need receiver settings during shutdown should retain
+	// them from Start.
+	Shutdown(ctx context.Context) error
 }
 
 // ConfigUnmarshaler is the interface used to unmarshal the exporter-specific

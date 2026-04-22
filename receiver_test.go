@@ -29,9 +29,11 @@ import (
 func TestEndToEnd_FullReceiverPipeline(t *testing.T) {
 	shutdownCalled := false
 	var startID, shutdownID component.ID
+	var shutdownSettings receiver.Settings
 	lifecycleManager := &mockLifecycleManager{
 		startFunc: func(_ context.Context, set receiver.Settings, _ Config) (*prometheus.Registry, error) {
 			startID = set.ID
+			shutdownSettings = set
 			reg := prometheus.NewRegistry()
 
 			counter := prometheus.NewCounter(prometheus.CounterOpts{
@@ -49,8 +51,8 @@ func TestEndToEnd_FullReceiverPipeline(t *testing.T) {
 
 			return reg, nil
 		},
-		shutdownFunc: func(_ context.Context, set receiver.Settings) error {
-			shutdownID = set.ID
+		shutdownFunc: func(_ context.Context) error {
+			shutdownID = shutdownSettings.ID
 			shutdownCalled = true
 			return nil
 		},
