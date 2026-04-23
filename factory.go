@@ -29,9 +29,11 @@ import (
 type ExporterLifecycleManager interface {
 	// Start sets up the exporter and returns a prometheus.Registry
 	// containing all the metrics collectors.
-	Start(ctx context.Context, exporterConfig Config) (*prometheus.Registry, error)
+	Start(ctx context.Context, set receiver.Settings, exporterConfig Config) (*prometheus.Registry, error)
 
 	// Shutdown is used to release resources when the receiver is shutting down.
+	// Implementations that need receiver settings during shutdown should retain
+	// them from Start.
 	Shutdown(ctx context.Context) error
 }
 

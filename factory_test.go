@@ -22,18 +22,19 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer/consumertest"
+	"go.opentelemetry.io/collector/receiver"
 	"go.opentelemetry.io/collector/receiver/receivertest"
 )
 
 // mockLifecycleManager is a test implementation of ExporterLifecycleManager.
 type mockLifecycleManager struct {
-	startFunc    func(ctx context.Context, cfg Config) (*prometheus.Registry, error)
+	startFunc    func(ctx context.Context, set receiver.Settings, cfg Config) (*prometheus.Registry, error)
 	shutdownFunc func(ctx context.Context) error
 }
 
-func (m *mockLifecycleManager) Start(ctx context.Context, cfg Config) (*prometheus.Registry, error) {
+func (m *mockLifecycleManager) Start(ctx context.Context, set receiver.Settings, cfg Config) (*prometheus.Registry, error) {
 	if m.startFunc != nil {
-		return m.startFunc(ctx, cfg)
+		return m.startFunc(ctx, set, cfg)
 	}
 	return prometheus.NewRegistry(), nil
 }

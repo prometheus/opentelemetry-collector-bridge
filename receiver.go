@@ -57,7 +57,7 @@ func (r *prometheusReceiver) Start(ctx context.Context, host component.Host) err
 	r.settings.Logger.Info("Starting Prometheus exporter receiver")
 
 	exporterConfig := r.config.GetExporterConfig()
-	registry, err := r.lifecycleManager.Start(ctx, exporterConfig)
+	registry, err := r.lifecycleManager.Start(ctx, r.settings, exporterConfig)
 	if err != nil {
 		return fmt.Errorf("failed to start exporter: %w", err)
 	}
