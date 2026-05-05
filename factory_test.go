@@ -58,6 +58,25 @@ func (m *mockConfigUnmarshaler) GetConfigStruct() Config {
 	return &mockConfig{}
 }
 
+type mockConfigDecoder struct {
+	getConfigStructFunc func() Config
+	decodeConfigFunc    func(raw map[string]interface{}) (Config, error)
+}
+
+func (m *mockConfigDecoder) GetConfigStruct() Config {
+	if m.getConfigStructFunc != nil {
+		return m.getConfigStructFunc()
+	}
+	return &mockConfig{}
+}
+
+func (m *mockConfigDecoder) DecodeConfig(raw map[string]interface{}) (Config, error) {
+	if m.decodeConfigFunc != nil {
+		return m.decodeConfigFunc(raw)
+	}
+	return &mockConfig{}, nil
+}
+
 // testExporterConfig is a test config struct with mapstructure tags.
 type testExporterConfig struct {
 	EnableFeature bool     `mapstructure:"enable_feature"`
@@ -324,6 +343,110 @@ func TestCreateMetricsReceiver_ValidExporterConfig(t *testing.T) {
 	}
 	if typedCfg.Port != 8080 {
 		t.Errorf("Port = %d, want 8080", typedCfg.Port)
+	}
+}
+
+func TestCreateMetricsReceiver_CustomConfigDecoder(t *testing.T) {
+	receiverType := component.MustNewType("test")
+	getConfigStructCalled := false
+	decodeConfigCalled := false
+	unmarshaler := &mockConfigDecoder{
+		getConfigStructFunc: func() Config {
+			getConfigStructCalled = true
+			return &testExporterConfig{}
+		},
+		decodeConfigFunc: func(raw map[string]interface{}) (Config, error) {
+			decodeConfigCalled = true
+			if raw["custom"] != "value" {
+				t.Fatalf("raw[custom] = %v, want value", raw["custom"])
+			}
+			return &testExporterConfig{
+				EnableFeature: true,
+				Timeout:       "10s",
+				Items:         []string{"decoded"},
+				Port:          9090,
+			}, nil
+		},
+	}
+
+	factory := NewFactory(
+		receiverType,
+		&mockLifecycleManager{},
+		unmarshaler,
+	)
+
+	cfg := &ReceiverConfig{
+		ScrapeInterval: 30 * time.Second,
+		ExporterConfig: map[string]interface{}{
+			"custom": "value",
+		},
+	}
+
+	ctx := context.Background()
+	set := receivertest.NewNopSettings(receiverType)
+	consumer := consumertest.NewNop()
+
+	receiver, err := factory.CreateMetrics(ctx, set, cfg, consumer)
+	if err != nil {
+		t.Fatalf("CreateMetrics() failed: %v", err)
+	}
+	if receiver == nil {
+		t.Fatal("CreateMetrics() returned nil receiver")
+	}
+	if getConfigStructCalled {
+		t.Fatal("GetConfigStruct() was called, want custom DecodeConfig path")
+	}
+	if !decodeConfigCalled {
+		t.Fatal("DecodeConfig() was not called")
+	}
+
+	exporterCfg := cfg.GetExporterConfig()
+	typedCfg, ok := exporterCfg.(*testExporterConfig)
+	if !ok {
+		t.Fatalf("GetExporterConfig() returned wrong type: %T", exporterCfg)
+	}
+	if !typedCfg.EnableFeature || typedCfg.Timeout != "10s" || typedCfg.Port != 9090 {
+		t.Fatalf("decoded config = %#v, want custom decoded config", typedCfg)
+	}
+	if len(typedCfg.Items) != 1 || typedCfg.Items[0] != "decoded" {
+		t.Fatalf("Items = %#v, want [decoded]", typedCfg.Items)
+	}
+}
+
+func TestCreateMetricsReceiver_CustomConfigDecoderError(t *testing.T) {
+	receiverType := component.MustNewType("test")
+	unmarshaler := &mockConfigDecoder{
+		decodeConfigFunc: func(map[string]interface{}) (Config, error) {
+			return nil, errors.New("custom decode failed")
+		},
+	}
+
+	factory := NewFactory(
+		receiverType,
+		&mockLifecycleManager{},
+		unmarshaler,
+	)
+
+	cfg := &ReceiverConfig{
+		ScrapeInterval: 30 * time.Second,
+		ExporterConfig: map[string]interface{}{
+			"custom": "value",
+		},
+	}
+
+	ctx := context.Background()
+	set := receivertest.NewNopSettings(receiverType)
+	consumer := consumertest.NewNop()
+
+	_, err := factory.CreateMetrics(ctx, set, cfg, consumer)
+	if err == nil {
+		t.Fatal("CreateMetrics() error = nil, want non-nil")
+	}
+	if !contains(err.Error(), "configuration validation failed") {
+		t.Fatalf("error = %v, want configuration validation failure", err)
+	}
+	if !contains(err.Error(), "custom decode failed") {
+		t.Fatalf("error = %v, want custom decode failure", err)
 	}
 }
 

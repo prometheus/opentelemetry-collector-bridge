@@ -45,6 +45,12 @@ type ConfigUnmarshaler interface {
 	GetConfigStruct() Config
 }
 
+// ConfigDecoder can be implemented by ConfigUnmarshaler implementations that
+// need to decode exporter-specific configuration without mapstructure tags.
+type ConfigDecoder interface {
+	DecodeConfig(raw map[string]interface{}) (Config, error)
+}
+
 // FactoryOption is a function that configures a Factory.
 type FactoryOption func(*factoryConfig)
 
@@ -115,18 +121,8 @@ func createMetricsReceiver(
 		}
 
 		if len(receiverCfg.ExporterConfig) > 0 {
-			exporterCfg := unmarshaler.GetConfigStruct()
-			decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-				Result:           exporterCfg,
-				ErrorUnused:      true,
-				WeaklyTypedInput: false,
-				TagName:          "mapstructure",
-			})
+			exporterCfg, err := decodeExporterConfig(unmarshaler, receiverCfg.ExporterConfig)
 			if err != nil {
-				return nil, fmt.Errorf("failed to create decoder: %w", err)
-			}
-
-			if err = decoder.Decode(receiverCfg.ExporterConfig); err != nil {
 				return nil, fmt.Errorf("configuration validation failed: %w", err)
 			}
 
@@ -144,4 +140,30 @@ func createMetricsReceiver(
 			lifecycleManager,
 		), nil
 	}
+}
+
+// decodeExporterConfig decodes the exporter-specific configuration using the provided
+// ConfigUnmarshaler. If the unmarshaler implements ConfigDecoder, it uses the DecodeConfig
+// method to decode the configuration. Otherwise, it uses the GetConfigStruct method to
+// create a new Config struct and decode the configuration into it.
+func decodeExporterConfig(unmarshaler ConfigUnmarshaler, raw map[string]interface{}) (Config, error) {
+	if decoder, ok := unmarshaler.(ConfigDecoder); ok {
+		return decoder.DecodeConfig(raw)
+	}
+
+	exporterCfg := unmarshaler.GetConfigStruct()
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result:           exporterCfg,
+		ErrorUnused:      true,
+		WeaklyTypedInput: false,
+		TagName:          "mapstructure",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create decoder: %w", err)
+	}
+
+	if err := decoder.Decode(raw); err != nil {
+		return nil, err
+	}
+	return exporterCfg, nil
 }
