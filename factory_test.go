@@ -482,8 +482,8 @@ func TestCreateMetricsReceiver_CustomConfigDecoderError(t *testing.T) {
 	if err == nil {
 		t.Fatal("CreateMetrics() error = nil, want non-nil")
 	}
-	if !contains(err.Error(), "configuration validation failed") {
-		t.Fatalf("error = %v, want configuration validation failure", err)
+	if !contains(err.Error(), "failed to decode config") {
+		t.Fatalf("error = %v, want config decode failure", err)
 	}
 	if !contains(err.Error(), "custom decode failed") {
 		t.Fatalf("error = %v, want custom decode failure", err)
@@ -522,7 +522,7 @@ func TestCreateMetricsReceiver_UnknownFieldsRejected(t *testing.T) {
 		t.Fatal("CreateMetrics() expected error for unknown fields, got nil")
 	}
 
-	expectedErrMsg := "configuration validation failed"
+	expectedErrMsg := "failed to decode config"
 	if !contains(err.Error(), expectedErrMsg) {
 		t.Errorf("error = %v, want error containing %v", err, expectedErrMsg)
 	}
@@ -552,21 +552,21 @@ func TestCreateMetricsReceiver_TypeMismatch(t *testing.T) {
 			exporterConfig: map[string]interface{}{
 				"enable_feature": "not_a_bool",
 			},
-			errContains: "configuration validation failed",
+			errContains: "failed to decode config",
 		},
 		{
 			name: "int field with string value",
 			exporterConfig: map[string]interface{}{
 				"port": "not_a_number",
 			},
-			errContains: "configuration validation failed",
+			errContains: "failed to decode config",
 		},
 		{
 			name: "string array with single string",
 			exporterConfig: map[string]interface{}{
 				"items": "not_an_array",
 			},
-			errContains: "configuration validation failed",
+			errContains: "failed to decode config",
 		},
 	}
 

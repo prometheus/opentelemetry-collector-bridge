@@ -156,7 +156,7 @@ func createMetricsReceiver(
 		if len(receiverCfg.ExporterConfig) > 0 {
 			exporterCfg, err := configDecoder.DecodeConfig(receiverCfg.ExporterConfig)
 			if err != nil {
-				return nil, fmt.Errorf("configuration validation failed: %w", err)
+				return nil, fmt.Errorf("failed to decode config: %w", err)
 			}
 
 			receiverCfg.SetExporterConfig(exporterCfg)
