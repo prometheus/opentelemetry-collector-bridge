@@ -58,6 +58,17 @@ func (m *mockConfigUnmarshaler) GetConfigStruct() Config {
 	return &mockConfig{}
 }
 
+type mockConfigDecoder struct {
+	decodeConfigFunc func(raw map[string]interface{}) (Config, error)
+}
+
+func (m *mockConfigDecoder) DecodeConfig(raw map[string]interface{}) (Config, error) {
+	if m.decodeConfigFunc != nil {
+		return m.decodeConfigFunc(raw)
+	}
+	return &mockConfig{}, nil
+}
+
 // testExporterConfig is a test config struct with mapstructure tags.
 type testExporterConfig struct {
 	EnableFeature bool     `mapstructure:"enable_feature"`
@@ -160,6 +171,62 @@ func TestNewFactory_Panics(t *testing.T) {
 				tt.typeStr,
 				tt.lifecycleManager,
 				tt.configUnmarshaler,
+			)
+		})
+	}
+}
+
+func TestNewFactoryWithDecoder_Panics(t *testing.T) {
+	tests := []struct {
+		name             string
+		typeStr          component.Type
+		lifecycleManager ExporterLifecycleManager
+		configDecoder    ConfigDecoder
+		wantPanicMsg     string
+	}{
+		{
+			name:             "empty type string",
+			typeStr:          component.Type{},
+			lifecycleManager: &mockLifecycleManager{},
+			configDecoder:    &mockConfigDecoder{},
+			wantPanicMsg:     "receiver type must be specified",
+		},
+		{
+			name:             "nil lifecycle manager",
+			typeStr:          component.MustNewType("test"),
+			lifecycleManager: nil,
+			configDecoder:    &mockConfigDecoder{},
+			wantPanicMsg:     "lifecycle manager must not be nil",
+		},
+		{
+			name:             "nil config decoder",
+			typeStr:          component.MustNewType("test"),
+			lifecycleManager: &mockLifecycleManager{},
+			configDecoder:    nil,
+			wantPanicMsg:     "config decoder must not be nil",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Fatal("NewFactoryWithDecoder() did not panic")
+				}
+				panicMsg, ok := r.(string)
+				if !ok {
+					t.Fatalf("panic value is not a string: %v", r)
+				}
+				if panicMsg != tt.wantPanicMsg {
+					t.Errorf("panic message = %q, want %q", panicMsg, tt.wantPanicMsg)
+				}
+			}()
+
+			NewFactoryWithDecoder(
+				tt.typeStr,
+				tt.lifecycleManager,
+				tt.configDecoder,
 			)
 		})
 	}
@@ -327,6 +394,102 @@ func TestCreateMetricsReceiver_ValidExporterConfig(t *testing.T) {
 	}
 }
 
+func TestCreateMetricsReceiver_CustomConfigDecoder(t *testing.T) {
+	receiverType := component.MustNewType("test")
+	decodeConfigCalled := false
+	unmarshaler := &mockConfigDecoder{
+		decodeConfigFunc: func(raw map[string]interface{}) (Config, error) {
+			decodeConfigCalled = true
+			if raw["custom"] != "value" {
+				t.Fatalf("raw[custom] = %v, want value", raw["custom"])
+			}
+			return &testExporterConfig{
+				EnableFeature: true,
+				Timeout:       "10s",
+				Items:         []string{"decoded"},
+				Port:          9090,
+			}, nil
+		},
+	}
+
+	factory := NewFactoryWithDecoder(
+		receiverType,
+		&mockLifecycleManager{},
+		unmarshaler,
+	)
+
+	cfg := &ReceiverConfig{
+		ScrapeInterval: 30 * time.Second,
+		ExporterConfig: map[string]interface{}{
+			"custom": "value",
+		},
+	}
+
+	ctx := context.Background()
+	set := receivertest.NewNopSettings(receiverType)
+	consumer := consumertest.NewNop()
+
+	receiver, err := factory.CreateMetrics(ctx, set, cfg, consumer)
+	if err != nil {
+		t.Fatalf("CreateMetrics() failed: %v", err)
+	}
+	if receiver == nil {
+		t.Fatal("CreateMetrics() returned nil receiver")
+	}
+	if !decodeConfigCalled {
+		t.Fatal("DecodeConfig() was not called")
+	}
+
+	exporterCfg := cfg.GetExporterConfig()
+	typedCfg, ok := exporterCfg.(*testExporterConfig)
+	if !ok {
+		t.Fatalf("GetExporterConfig() returned wrong type: %T", exporterCfg)
+	}
+	if !typedCfg.EnableFeature || typedCfg.Timeout != "10s" || typedCfg.Port != 9090 {
+		t.Fatalf("decoded config = %#v, want custom decoded config", typedCfg)
+	}
+	if len(typedCfg.Items) != 1 || typedCfg.Items[0] != "decoded" {
+		t.Fatalf("Items = %#v, want [decoded]", typedCfg.Items)
+	}
+}
+
+func TestCreateMetricsReceiver_CustomConfigDecoderError(t *testing.T) {
+	receiverType := component.MustNewType("test")
+	unmarshaler := &mockConfigDecoder{
+		decodeConfigFunc: func(map[string]interface{}) (Config, error) {
+			return nil, errors.New("custom decode failed")
+		},
+	}
+
+	factory := NewFactoryWithDecoder(
+		receiverType,
+		&mockLifecycleManager{},
+		unmarshaler,
+	)
+
+	cfg := &ReceiverConfig{
+		ScrapeInterval: 30 * time.Second,
+		ExporterConfig: map[string]interface{}{
+			"custom": "value",
+		},
+	}
+
+	ctx := context.Background()
+	set := receivertest.NewNopSettings(receiverType)
+	consumer := consumertest.NewNop()
+
+	_, err := factory.CreateMetrics(ctx, set, cfg, consumer)
+	if err == nil {
+		t.Fatal("CreateMetrics() error = nil, want non-nil")
+	}
+	if !contains(err.Error(), "failed to decode config") {
+		t.Fatalf("error = %v, want config decode failure", err)
+	}
+	if !contains(err.Error(), "custom decode failed") {
+		t.Fatalf("error = %v, want custom decode failure", err)
+	}
+}
+
 func TestCreateMetricsReceiver_UnknownFieldsRejected(t *testing.T) {
 	receiverType := component.MustNewType("test")
 	unmarshaler := &mockConfigUnmarshaler{
@@ -359,7 +522,7 @@ func TestCreateMetricsReceiver_UnknownFieldsRejected(t *testing.T) {
 		t.Fatal("CreateMetrics() expected error for unknown fields, got nil")
 	}
 
-	expectedErrMsg := "configuration validation failed"
+	expectedErrMsg := "failed to decode config"
 	if !contains(err.Error(), expectedErrMsg) {
 		t.Errorf("error = %v, want error containing %v", err, expectedErrMsg)
 	}
@@ -389,21 +552,21 @@ func TestCreateMetricsReceiver_TypeMismatch(t *testing.T) {
 			exporterConfig: map[string]interface{}{
 				"enable_feature": "not_a_bool",
 			},
-			errContains: "configuration validation failed",
+			errContains: "failed to decode config",
 		},
 		{
 			name: "int field with string value",
 			exporterConfig: map[string]interface{}{
 				"port": "not_a_number",
 			},
-			errContains: "configuration validation failed",
+			errContains: "failed to decode config",
 		},
 		{
 			name: "string array with single string",
 			exporterConfig: map[string]interface{}{
 				"items": "not_an_array",
 			},
-			errContains: "configuration validation failed",
+			errContains: "failed to decode config",
 		},
 	}
 
