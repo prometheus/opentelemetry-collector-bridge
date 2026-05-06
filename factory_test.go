@@ -59,15 +59,7 @@ func (m *mockConfigUnmarshaler) GetConfigStruct() Config {
 }
 
 type mockConfigDecoder struct {
-	getConfigStructFunc func() Config
-	decodeConfigFunc    func(raw map[string]interface{}) (Config, error)
-}
-
-func (m *mockConfigDecoder) GetConfigStruct() Config {
-	if m.getConfigStructFunc != nil {
-		return m.getConfigStructFunc()
-	}
-	return &mockConfig{}
+	decodeConfigFunc func(raw map[string]interface{}) (Config, error)
 }
 
 func (m *mockConfigDecoder) DecodeConfig(raw map[string]interface{}) (Config, error) {
@@ -179,6 +171,62 @@ func TestNewFactory_Panics(t *testing.T) {
 				tt.typeStr,
 				tt.lifecycleManager,
 				tt.configUnmarshaler,
+			)
+		})
+	}
+}
+
+func TestNewFactoryWithDecoder_Panics(t *testing.T) {
+	tests := []struct {
+		name             string
+		typeStr          component.Type
+		lifecycleManager ExporterLifecycleManager
+		configDecoder    ConfigDecoder
+		wantPanicMsg     string
+	}{
+		{
+			name:             "empty type string",
+			typeStr:          component.Type{},
+			lifecycleManager: &mockLifecycleManager{},
+			configDecoder:    &mockConfigDecoder{},
+			wantPanicMsg:     "receiver type must be specified",
+		},
+		{
+			name:             "nil lifecycle manager",
+			typeStr:          component.MustNewType("test"),
+			lifecycleManager: nil,
+			configDecoder:    &mockConfigDecoder{},
+			wantPanicMsg:     "lifecycle manager must not be nil",
+		},
+		{
+			name:             "nil config decoder",
+			typeStr:          component.MustNewType("test"),
+			lifecycleManager: &mockLifecycleManager{},
+			configDecoder:    nil,
+			wantPanicMsg:     "config decoder must not be nil",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Fatal("NewFactoryWithDecoder() did not panic")
+				}
+				panicMsg, ok := r.(string)
+				if !ok {
+					t.Fatalf("panic value is not a string: %v", r)
+				}
+				if panicMsg != tt.wantPanicMsg {
+					t.Errorf("panic message = %q, want %q", panicMsg, tt.wantPanicMsg)
+				}
+			}()
+
+			NewFactoryWithDecoder(
+				tt.typeStr,
+				tt.lifecycleManager,
+				tt.configDecoder,
 			)
 		})
 	}
@@ -348,13 +396,8 @@ func TestCreateMetricsReceiver_ValidExporterConfig(t *testing.T) {
 
 func TestCreateMetricsReceiver_CustomConfigDecoder(t *testing.T) {
 	receiverType := component.MustNewType("test")
-	getConfigStructCalled := false
 	decodeConfigCalled := false
 	unmarshaler := &mockConfigDecoder{
-		getConfigStructFunc: func() Config {
-			getConfigStructCalled = true
-			return &testExporterConfig{}
-		},
 		decodeConfigFunc: func(raw map[string]interface{}) (Config, error) {
 			decodeConfigCalled = true
 			if raw["custom"] != "value" {
@@ -369,7 +412,7 @@ func TestCreateMetricsReceiver_CustomConfigDecoder(t *testing.T) {
 		},
 	}
 
-	factory := NewFactory(
+	factory := NewFactoryWithDecoder(
 		receiverType,
 		&mockLifecycleManager{},
 		unmarshaler,
@@ -392,9 +435,6 @@ func TestCreateMetricsReceiver_CustomConfigDecoder(t *testing.T) {
 	}
 	if receiver == nil {
 		t.Fatal("CreateMetrics() returned nil receiver")
-	}
-	if getConfigStructCalled {
-		t.Fatal("GetConfigStruct() was called, want custom DecodeConfig path")
 	}
 	if !decodeConfigCalled {
 		t.Fatal("DecodeConfig() was not called")
@@ -421,7 +461,7 @@ func TestCreateMetricsReceiver_CustomConfigDecoderError(t *testing.T) {
 		},
 	}
 
-	factory := NewFactory(
+	factory := NewFactoryWithDecoder(
 		receiverType,
 		&mockLifecycleManager{},
 		unmarshaler,
