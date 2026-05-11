@@ -62,11 +62,11 @@ func TestReceiverConfig_Validate(t *testing.T) {
 				cfg := ReceiverConfig{
 					ScrapeInterval: 30 * time.Second,
 				}
-				cfg.SetExporterConfig(&mockConfig{
+				cfg.exporterConfigInstance = &mockConfig{
 					validateFunc: func() error {
 						return nil
 					},
-				})
+				}
 				return cfg
 			},
 		},
@@ -76,11 +76,11 @@ func TestReceiverConfig_Validate(t *testing.T) {
 				cfg := ReceiverConfig{
 					ScrapeInterval: 0,
 				}
-				cfg.SetExporterConfig(&mockConfig{
+				cfg.exporterConfigInstance = &mockConfig{
 					validateFunc: func() error {
 						return nil
 					},
-				})
+				}
 				return cfg
 			},
 			wantErr:     true,
@@ -92,11 +92,11 @@ func TestReceiverConfig_Validate(t *testing.T) {
 				cfg := ReceiverConfig{
 					ScrapeInterval: 30 * time.Second,
 				}
-				cfg.SetExporterConfig(&mockConfig{
+				cfg.exporterConfigInstance = &mockConfig{
 					validateFunc: func() error {
 						return errors.New("exporter config validation failed")
 					},
-				})
+				}
 				return cfg
 			},
 			wantErr:     true,
@@ -108,15 +108,25 @@ func TestReceiverConfig_Validate(t *testing.T) {
 				cfg := ReceiverConfig{
 					ScrapeInterval: -1 * time.Second,
 				}
-				cfg.SetExporterConfig(&mockConfig{
+				cfg.exporterConfigInstance = &mockConfig{
 					validateFunc: func() error {
 						return errors.New("exporter error")
 					},
-				})
+				}
 				return cfg
 			},
 			wantErr:     true,
 			errContains: "scrape_interval must be greater than 0",
+		},
+		{
+			name: "exporter config without Validate passes",
+			setupConfig: func() ReceiverConfig {
+				cfg := ReceiverConfig{
+					ScrapeInterval: 30 * time.Second,
+				}
+				cfg.exporterConfigInstance = struct{ Foo string }{Foo: "bar"}
+				return cfg
+			},
 		},
 	}
 
@@ -134,41 +144,6 @@ func TestReceiverConfig_Validate(t *testing.T) {
 				if err == nil || !contains(err.Error(), tt.errContains) {
 					t.Errorf("Validate() error = %v, want error containing %v", err, tt.errContains)
 				}
-			}
-		})
-	}
-}
-
-func TestReceiverConfig_SetAndGetExporterConfig(t *testing.T) {
-	tests := []struct {
-		name           string
-		exporterConfig Config
-	}{
-		{
-			name: "set and get non-nil exporter config",
-			exporterConfig: &mockConfig{
-				validateFunc: func() error {
-					return nil
-				},
-			},
-		},
-		{
-			name:           "set and get nil exporter config",
-			exporterConfig: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := ReceiverConfig{
-				ScrapeInterval: 30 * time.Second,
-			}
-
-			cfg.SetExporterConfig(tt.exporterConfig)
-			got := cfg.GetExporterConfig()
-
-			if got != tt.exporterConfig {
-				t.Errorf("GetExporterConfig() returned different instance")
 			}
 		})
 	}

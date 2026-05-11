@@ -22,7 +22,7 @@
 // The prometheuscollectorbridge package provides the core infrastructure for converting
 // Prometheus exporters into OTel receivers:
 //
-//  1. Config system for exporter-specific configuration with automatic validation
+//  1. Config system for exporter-specific configuration with optional validation
 //  2. Factory pattern for creating receiver instances
 //  3. Lifecycle management (Start/Shutdown)
 //  4. Periodic metric scraping from Prometheus registries
@@ -38,7 +38,7 @@
 //	    // exporter state
 //	}
 //
-//	func (i *MyExporterLifecycleManager) Start(ctx context.Context, set receiver.Settings, cfg Config) (*prometheus.Registry, error) {
+//	func (i *MyExporterLifecycleManager) Start(ctx context.Context, set receiver.Settings, cfg any) (*prometheus.Registry, error) {
 //	    i.settings = set
 //	    // Start your exporter and return its registry
 //	}
@@ -58,7 +58,7 @@
 //
 //	type MyConfigUnmarshaler struct{}
 //
-//	func (u *MyConfigUnmarshaler) GetConfigStruct() Config {
+//	func (u *MyConfigUnmarshaler) GetConfigStruct() any {
 //	    return &MyConfig{}
 //	}
 //
@@ -83,9 +83,39 @@
 //	      items: ["item1", "item2"]
 //
 // The framework automatically validates configuration using mapstructure tags:
-// - Unknown fields are rejected
-// - Type mismatches are caught (e.g., string where bool expected)
-// - Custom validation can be added via the Config.Validate() method
+//   - Unknown fields are rejected
+//   - Type mismatches are caught (e.g., string where bool expected)
+//
+// # Validation
+//
+// Custom validation is opt-in. Implement a `Validate() error` method on your
+// config struct and the framework will call it after decoding, before the
+// receiver starts. A non-nil return rejects the configuration; the error
+// surfaces through ReceiverConfig.Validate().
+//
+//	func (c *MyConfig) Validate() error {
+//	    if c.Timeout <= 0 {
+//	        return errors.New("timeout must be positive")
+//	    }
+//	    return nil
+//	}
+//
+// Scope: use Validate for invariants specific to the receiver layer —
+// fields or constraints that exist only because of how the receiver wraps
+// the exporter. Validation of the underlying exporter's own configuration
+// belongs in the exporter, not here; if the exporter has a constructor or
+// init path that rejects bad config, let those checks stay there and
+// surface through the lifecycle manager's Start method. Duplicating
+// exporter-level checks in the receiver's Validate would split the same
+// concern across two places.
+//
+// Don't use Validate for checks that require I/O or external dependencies
+// (network reachability, credential validity). Those need a context and
+// belong in Start.
+//
+// Exporters without anything to validate can omit the method entirely; the
+// framework only invokes it when the config satisfies
+// interface{ Validate() error }.
 //
 // # Architecture
 //
