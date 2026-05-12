@@ -30,25 +30,42 @@
 //
 // # Usage
 //
-// To integrate a Prometheus exporter, implement two interfaces:
+// To integrate a Prometheus exporter, implement an ExporterLifecycleManager
+// and choose how the bridge should decode the exporter's YAML configuration.
 //
-// ExporterLifecycleManager: Manages the exporter lifecycle
+// ## ExporterLifecycleManager
+//
+// Manages the exporter's lifecycle. Start is called once at receiver start;
+// it returns a *prometheus.Registry that the bridge scrapes for the lifetime
+// of the receiver. Shutdown is called once when the receiver stops; release
+// any resources Start acquired (goroutines, network connections, etc.).
 //
 //	type MyExporterLifecycleManager struct {
-//	    // exporter state
+//	    settings receiver.Settings
 //	}
 //
-//	func (i *MyExporterLifecycleManager) Start(ctx context.Context, set receiver.Settings, cfg any) (*prometheus.Registry, error) {
-//	    i.settings = set
-//	    // Start your exporter and return its registry
+//	func (m *MyExporterLifecycleManager) Start(ctx context.Context, set receiver.Settings, cfg any) (*prometheus.Registry, error) {
+//	    m.settings = set
+//	    exporterCfg, ok := cfg.(*MyConfig)
+//	    if !ok {
+//	        return nil, fmt.Errorf("expected *MyConfig, got %T", cfg)
+//	    }
+//	    registry := prometheus.NewRegistry()
+//	    // Build collectors using exporterCfg and register them on the registry.
+//	    return registry, nil
 //	}
 //
-//	func (i *MyExporterLifecycleManager) Shutdown(ctx context.Context) error {
-//	    i.settings.Logger.Info("shutting down exporter")
-//	    // Clean up resources
+//	func (m *MyExporterLifecycleManager) Shutdown(ctx context.Context) error {
+//	    // Stop goroutines or release resources Start owned.
+//	    return nil
 //	}
 //
-// ConfigUnmarshaler: Handles exporter-specific configuration using mapstructure
+// ## Config decoding: two approaches
+//
+// The bridge supports two factory variants depending on how you want the
+// exporter's YAML configuration decoded.
+//
+// Approach 1: mapstructure tags on the exporter's config (NewFactory).
 //
 //	type MyConfig struct {
 //	    EnableFeature bool     `mapstructure:"enable_feature"`
@@ -62,13 +79,51 @@
 //	    return &MyConfig{}
 //	}
 //
-// Then create a receiver factory:
-//
 //	factory := prometheuscollectorbridge.NewFactory(
 //	    component.MustNewType("prometheus/myexporter"),
 //	    &MyExporterLifecycleManager{},
 //	    &MyConfigUnmarshaler{},
 //	)
+//
+// Use this when the receiver and the exporter live in the same module, or
+// when adding mapstructure tags to the exporter's config struct is fine.
+//
+// Approach 2: custom decoder (NewFactoryWithDecoder).
+//
+//	type myDecoder struct{}
+//
+//	func (myDecoder) DecodeConfig(raw map[string]interface{}) (any, error) {
+//	    // Build the typed value from the raw map however you want.
+//	    // Return any concrete type your lifecycle manager can type-assert.
+//	}
+//
+//	factory := prometheuscollectorbridge.NewFactoryWithDecoder(
+//	    component.MustNewType("prometheus/myexporter"),
+//	    &MyExporterLifecycleManager{},
+//	    myDecoder{},
+//	)
+//
+// Use this when the exporter is a separate package whose config struct should
+// stay free of OTel/YAML-specific concerns (no mapstructure tags), or when
+// the default mapstructure setup doesn't fit your decoding needs. This is
+// the right path for receivers that wrap an upstream exporter without
+// modifying the exporter package.
+//
+// ## Component defaults
+//
+// The OTel framework merges defaults onto the user's YAML before the bridge
+// decodes it. Pass WithComponentDefaults to seed those defaults:
+//
+//	factory := prometheuscollectorbridge.NewFactory(
+//	    typ, lifecycle, unmarshaler,
+//	    prometheuscollectorbridge.WithComponentDefaults(map[string]interface{}{
+//	        "timeout":        "30s",
+//	        "enable_feature": true,
+//	    }),
+//	)
+//
+// Without this, partial configs (where the user omits a field) decode as the
+// field's zero value rather than your intended default.
 //
 // # Configuration
 //
@@ -82,9 +137,11 @@
 //	      timeout: "30s"
 //	      items: ["item1", "item2"]
 //
-// The framework automatically validates configuration using mapstructure tags:
-//   - Unknown fields are rejected
-//   - Type mismatches are caught (e.g., string where bool expected)
+// The bridge always validates scrape_interval (must be greater than 0).
+// Decoding semantics for the exporter_config block depend on the factory
+// variant: NewFactory rejects unknown fields and catches type mismatches via
+// mapstructure; NewFactoryWithDecoder behaves however your decoder is set
+// up.
 //
 // # Validation
 //
