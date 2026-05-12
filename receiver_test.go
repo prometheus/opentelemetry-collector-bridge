@@ -31,7 +31,7 @@ func TestEndToEnd_FullReceiverPipeline(t *testing.T) {
 	var startID, shutdownID component.ID
 	var shutdownSettings receiver.Settings
 	lifecycleManager := &mockLifecycleManager{
-		startFunc: func(_ context.Context, set receiver.Settings, _ Config) (*prometheus.Registry, error) {
+		startFunc: func(_ context.Context, set receiver.Settings, _ any) (*prometheus.Registry, error) {
 			startID = set.ID
 			shutdownSettings = set
 			reg := prometheus.NewRegistry()
@@ -121,7 +121,7 @@ func TestEndToEnd_FullReceiverPipeline(t *testing.T) {
 
 func TestEndToEnd_MultipleScrapes(t *testing.T) {
 	lifecycleManager := &mockLifecycleManager{
-		startFunc: func(_ context.Context, _ receiver.Settings, _ Config) (*prometheus.Registry, error) {
+		startFunc: func(_ context.Context, _ receiver.Settings, _ any) (*prometheus.Registry, error) {
 			reg := prometheus.NewRegistry()
 			gauge := prometheus.NewGauge(prometheus.GaugeOpts{
 				Name: "scrape_test_metric",

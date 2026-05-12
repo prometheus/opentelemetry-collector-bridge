@@ -29,7 +29,7 @@ import (
 type ExporterLifecycleManager interface {
 	// Start sets up the exporter and returns a prometheus.Registry
 	// containing all the metrics collectors.
-	Start(ctx context.Context, set receiver.Settings, exporterConfig Config) (*prometheus.Registry, error)
+	Start(ctx context.Context, set receiver.Settings, exporterConfig any) (*prometheus.Registry, error)
 
 	// Shutdown is used to release resources when the receiver is shutting down.
 	// Implementations that need receiver settings during shutdown should retain
@@ -42,12 +42,12 @@ type ExporterLifecycleManager interface {
 type ConfigUnmarshaler interface {
 	// GetConfigStruct returns a pointer to the config struct that mapstructure
 	// will populate. The struct should have appropriate mapstructure tags.
-	GetConfigStruct() Config
+	GetConfigStruct() any
 }
 
 // ConfigDecoder decodes exporter-specific configuration.
 type ConfigDecoder interface {
-	DecodeConfig(raw map[string]interface{}) (Config, error)
+	DecodeConfig(raw map[string]interface{}) (any, error)
 }
 
 // FactoryOption is a function that configures a Factory.
@@ -159,7 +159,7 @@ func createMetricsReceiver(
 				return nil, fmt.Errorf("failed to decode config: %w", err)
 			}
 
-			receiverCfg.SetExporterConfig(exporterCfg)
+			receiverCfg.exporterConfigInstance = exporterCfg
 		}
 
 		if err := receiverCfg.Validate(); err != nil {
@@ -180,7 +180,7 @@ type mapstructureConfigDecoder struct {
 }
 
 // DecodeConfig implements the ConfigDecoder interface using mapstructure.
-func (d mapstructureConfigDecoder) DecodeConfig(raw map[string]interface{}) (Config, error) {
+func (d mapstructureConfigDecoder) DecodeConfig(raw map[string]interface{}) (any, error) {
 	exporterCfg := d.unmarshaler.GetConfigStruct()
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		Result:           exporterCfg,

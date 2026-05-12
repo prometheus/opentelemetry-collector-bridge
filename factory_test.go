@@ -28,11 +28,11 @@ import (
 
 // mockLifecycleManager is a test implementation of ExporterLifecycleManager.
 type mockLifecycleManager struct {
-	startFunc    func(ctx context.Context, set receiver.Settings, cfg Config) (*prometheus.Registry, error)
+	startFunc    func(ctx context.Context, set receiver.Settings, cfg any) (*prometheus.Registry, error)
 	shutdownFunc func(ctx context.Context) error
 }
 
-func (m *mockLifecycleManager) Start(ctx context.Context, set receiver.Settings, cfg Config) (*prometheus.Registry, error) {
+func (m *mockLifecycleManager) Start(ctx context.Context, set receiver.Settings, cfg any) (*prometheus.Registry, error) {
 	if m.startFunc != nil {
 		return m.startFunc(ctx, set, cfg)
 	}
@@ -48,10 +48,10 @@ func (m *mockLifecycleManager) Shutdown(ctx context.Context) error {
 
 // mockConfigUnmarshaler is a test implementation of ConfigUnmarshaler.
 type mockConfigUnmarshaler struct {
-	getConfigStructFunc func() Config
+	getConfigStructFunc func() any
 }
 
-func (m *mockConfigUnmarshaler) GetConfigStruct() Config {
+func (m *mockConfigUnmarshaler) GetConfigStruct() any {
 	if m.getConfigStructFunc != nil {
 		return m.getConfigStructFunc()
 	}
@@ -59,10 +59,10 @@ func (m *mockConfigUnmarshaler) GetConfigStruct() Config {
 }
 
 type mockConfigDecoder struct {
-	decodeConfigFunc func(raw map[string]interface{}) (Config, error)
+	decodeConfigFunc func(raw map[string]interface{}) (any, error)
 }
 
-func (m *mockConfigDecoder) DecodeConfig(raw map[string]interface{}) (Config, error) {
+func (m *mockConfigDecoder) DecodeConfig(raw map[string]interface{}) (any, error) {
 	if m.decodeConfigFunc != nil {
 		return m.decodeConfigFunc(raw)
 	}
@@ -336,7 +336,7 @@ func TestCreateMetricsReceiver_EmptyExporterConfig(t *testing.T) {
 func TestCreateMetricsReceiver_ValidExporterConfig(t *testing.T) {
 	receiverType := component.MustNewType("test")
 	unmarshaler := &mockConfigUnmarshaler{
-		getConfigStructFunc: func() Config {
+		getConfigStructFunc: func() any {
 			return &testExporterConfig{}
 		},
 	}
@@ -370,14 +370,14 @@ func TestCreateMetricsReceiver_ValidExporterConfig(t *testing.T) {
 		t.Fatal("CreateMetrics() returned nil receiver")
 	}
 
-	exporterCfg := cfg.GetExporterConfig()
+	exporterCfg := cfg.exporterConfigInstance
 	if exporterCfg == nil {
-		t.Fatal("GetExporterConfig() returned nil")
+		t.Fatal("exporterConfigInstance is nil")
 	}
 
 	typedCfg, ok := exporterCfg.(*testExporterConfig)
 	if !ok {
-		t.Fatalf("GetExporterConfig() returned wrong type: %T", exporterCfg)
+		t.Fatalf("exporterConfigInstance has wrong type: %T", exporterCfg)
 	}
 
 	if !typedCfg.EnableFeature {
@@ -398,7 +398,7 @@ func TestCreateMetricsReceiver_CustomConfigDecoder(t *testing.T) {
 	receiverType := component.MustNewType("test")
 	decodeConfigCalled := false
 	unmarshaler := &mockConfigDecoder{
-		decodeConfigFunc: func(raw map[string]interface{}) (Config, error) {
+		decodeConfigFunc: func(raw map[string]interface{}) (any, error) {
 			decodeConfigCalled = true
 			if raw["custom"] != "value" {
 				t.Fatalf("raw[custom] = %v, want value", raw["custom"])
@@ -440,10 +440,10 @@ func TestCreateMetricsReceiver_CustomConfigDecoder(t *testing.T) {
 		t.Fatal("DecodeConfig() was not called")
 	}
 
-	exporterCfg := cfg.GetExporterConfig()
+	exporterCfg := cfg.exporterConfigInstance
 	typedCfg, ok := exporterCfg.(*testExporterConfig)
 	if !ok {
-		t.Fatalf("GetExporterConfig() returned wrong type: %T", exporterCfg)
+		t.Fatalf("exporterConfigInstance has wrong type: %T", exporterCfg)
 	}
 	if !typedCfg.EnableFeature || typedCfg.Timeout != "10s" || typedCfg.Port != 9090 {
 		t.Fatalf("decoded config = %#v, want custom decoded config", typedCfg)
@@ -456,7 +456,7 @@ func TestCreateMetricsReceiver_CustomConfigDecoder(t *testing.T) {
 func TestCreateMetricsReceiver_CustomConfigDecoderError(t *testing.T) {
 	receiverType := component.MustNewType("test")
 	unmarshaler := &mockConfigDecoder{
-		decodeConfigFunc: func(map[string]interface{}) (Config, error) {
+		decodeConfigFunc: func(map[string]interface{}) (any, error) {
 			return nil, errors.New("custom decode failed")
 		},
 	}
@@ -493,7 +493,7 @@ func TestCreateMetricsReceiver_CustomConfigDecoderError(t *testing.T) {
 func TestCreateMetricsReceiver_UnknownFieldsRejected(t *testing.T) {
 	receiverType := component.MustNewType("test")
 	unmarshaler := &mockConfigUnmarshaler{
-		getConfigStructFunc: func() Config {
+		getConfigStructFunc: func() any {
 			return &testExporterConfig{}
 		},
 	}
@@ -531,7 +531,7 @@ func TestCreateMetricsReceiver_UnknownFieldsRejected(t *testing.T) {
 func TestCreateMetricsReceiver_TypeMismatch(t *testing.T) {
 	receiverType := component.MustNewType("test")
 	unmarshaler := &mockConfigUnmarshaler{
-		getConfigStructFunc: func() Config {
+		getConfigStructFunc: func() any {
 			return &testExporterConfig{}
 		},
 	}
@@ -596,7 +596,7 @@ func TestCreateMetricsReceiver_TypeMismatch(t *testing.T) {
 func TestCreateMetricsReceiver_ConfigValidationFails(t *testing.T) {
 	receiverType := component.MustNewType("test")
 	unmarshaler := &mockConfigUnmarshaler{
-		getConfigStructFunc: func() Config {
+		getConfigStructFunc: func() any {
 			return &testExporterConfig{}
 		},
 	}

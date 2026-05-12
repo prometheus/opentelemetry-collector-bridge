@@ -18,13 +18,6 @@ import (
 	"time"
 )
 
-// Config is the interface that exporter-specific configurations must implement.
-// Each Prometheus exporter will provide its own Config implementation.
-type Config interface {
-	// Validate checks if the configuration is valid.
-	Validate() error
-}
-
 // ReceiverConfig holds the common configuration for all Prometheus exporter receivers.
 type ReceiverConfig struct {
 	// ScrapeInterval defines how often to collect metrics from the exporter.
@@ -37,7 +30,7 @@ type ReceiverConfig struct {
 
 	// exporterConfigInstance is the unmarshaled exporter-specific config.
 	// This is set by the factory after unmarshaling.
-	exporterConfigInstance Config
+	exporterConfigInstance any
 }
 
 // Validate checks if the ReceiverConfig is valid.
@@ -45,25 +38,12 @@ func (cfg *ReceiverConfig) Validate() error {
 	if cfg.ScrapeInterval <= 0 {
 		return errors.New("scrape_interval must be greater than 0")
 	}
-
-	// Validate the exporter-specific config if it exists
-	if cfg.exporterConfigInstance != nil {
-		if err := cfg.exporterConfigInstance.Validate(); err != nil {
+	if v, ok := cfg.exporterConfigInstance.(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
 			return err
 		}
 	}
-
 	return nil
-}
-
-// SetExporterConfig sets the unmarshaled exporter-specific configuration.
-func (cfg *ReceiverConfig) SetExporterConfig(exporterCfg Config) {
-	cfg.exporterConfigInstance = exporterCfg
-}
-
-// GetExporterConfig returns the unmarshaled exporter-specific configuration.
-func (cfg *ReceiverConfig) GetExporterConfig() Config {
-	return cfg.exporterConfigInstance
 }
 
 func createDefaultConfig() ReceiverConfig {
