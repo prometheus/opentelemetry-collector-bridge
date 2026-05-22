@@ -3,7 +3,7 @@ module github.com/prometheus/opentelemetry-collector-bridge
 go 1.25.0
 
 require (
-	github.com/mitchellh/mapstructure v1.5.0
+	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/prometheus/client_golang v1.23.2
 	go.opentelemetry.io/collector/component v1.58.0
 	go.opentelemetry.io/collector/component/componenttest v0.152.1
