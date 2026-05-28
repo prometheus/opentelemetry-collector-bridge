@@ -13,7 +13,7 @@ require (
 	go.opentelemetry.io/collector/receiver v1.59.0
 	go.opentelemetry.io/collector/receiver/receivertest v0.153.0
 	go.opentelemetry.io/collector/scraper/scraperhelper v0.153.0
-	go.opentelemetry.io/contrib/bridges/prometheus v0.68.0
+	go.opentelemetry.io/contrib/bridges/prometheus v0.69.0
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/sdk/metric v1.44.0
 	go.uber.org/zap v1.28.0
