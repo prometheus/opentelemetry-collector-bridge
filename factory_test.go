@@ -16,9 +16,11 @@ package prometheuscollectorbridge
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer/consumertest"
@@ -695,4 +697,505 @@ func TestFactoryOptions(t *testing.T) {
 			t.Errorf("ExporterConfig[key2] = %v, want 42", val)
 		}
 	})
+}
+
+// untaggedTestConfig has no mapstructure tags. Field matching relies on
+// case-insensitive comparison after underscores in YAML keys are stripped.
+type untaggedTestConfig struct {
+	EnableFeature bool
+	Timeout       time.Duration
+	Items         []string
+	Port          int
+	HTTPTimeout   time.Duration
+}
+
+func TestNewFactoryWithUntaggedConfig_Panics(t *testing.T) {
+	tests := []struct {
+		name              string
+		typeStr           component.Type
+		lifecycleManager  ExporterLifecycleManager
+		configUnmarshaler ConfigUnmarshaler
+		wantPanicMsg      string
+	}{
+		{
+			name:              "empty type string",
+			typeStr:           component.Type{},
+			lifecycleManager:  &mockLifecycleManager{},
+			configUnmarshaler: &mockConfigUnmarshaler{},
+			wantPanicMsg:      "receiver type must be specified",
+		},
+		{
+			name:              "nil lifecycle manager",
+			typeStr:           component.MustNewType("test"),
+			lifecycleManager:  nil,
+			configUnmarshaler: &mockConfigUnmarshaler{},
+			wantPanicMsg:      "lifecycle manager must not be nil",
+		},
+		{
+			name:              "nil config unmarshaler",
+			typeStr:           component.MustNewType("test"),
+			lifecycleManager:  &mockLifecycleManager{},
+			configUnmarshaler: nil,
+			wantPanicMsg:      "config unmarshaler must not be nil",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Fatal("NewFactoryWithUntaggedConfig() did not panic")
+				}
+				panicMsg, ok := r.(string)
+				if !ok {
+					t.Fatalf("panic value is not a string: %v", r)
+				}
+				if panicMsg != tt.wantPanicMsg {
+					t.Errorf("panic message = %q, want %q", panicMsg, tt.wantPanicMsg)
+				}
+			}()
+
+			NewFactoryWithUntaggedConfig(
+				tt.typeStr,
+				tt.lifecycleManager,
+				tt.configUnmarshaler,
+			)
+		})
+	}
+}
+
+func TestNewFactoryWithUntaggedConfig_SnakeCaseMatching(t *testing.T) {
+	receiverType := component.MustNewType("test")
+	unmarshaler := &mockConfigUnmarshaler{
+		getConfigStructFunc: func() any {
+			return &untaggedTestConfig{}
+		},
+	}
+
+	factory := NewFactoryWithUntaggedConfig(
+		receiverType,
+		&mockLifecycleManager{},
+		unmarshaler,
+		WithDecodeHooks(mapstructure.StringToTimeDurationHookFunc()),
+	)
+
+	cfg := &ReceiverConfig{
+		ScrapeInterval: 30 * time.Second,
+		ExporterConfig: map[string]interface{}{
+			"enable_feature": true,
+			"timeout":        "45s",
+			"items":          []string{"a", "b"},
+			"port":           8080,
+			"http_timeout":   "10s",
+		},
+	}
+
+	ctx := context.Background()
+	set := receivertest.NewNopSettings(receiverType)
+	consumer := consumertest.NewNop()
+
+	r, err := factory.CreateMetrics(ctx, set, cfg, consumer)
+	if err != nil {
+		t.Fatalf("CreateMetrics() failed: %v", err)
+	}
+	if r == nil {
+		t.Fatal("CreateMetrics() returned nil receiver")
+	}
+
+	got, ok := cfg.exporterConfigInstance.(*untaggedTestConfig)
+	if !ok {
+		t.Fatalf("exporterConfigInstance has wrong type: %T", cfg.exporterConfigInstance)
+	}
+
+	want := &untaggedTestConfig{
+		EnableFeature: true,
+		Timeout:       45 * time.Second,
+		Items:         []string{"a", "b"},
+		Port:          8080,
+		HTTPTimeout:   10 * time.Second,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("decoded config = %#v, want %#v", got, want)
+	}
+}
+
+func TestNewFactoryWithUntaggedConfig_UnknownFieldsRejected(t *testing.T) {
+	receiverType := component.MustNewType("test")
+	unmarshaler := &mockConfigUnmarshaler{
+		getConfigStructFunc: func() any {
+			return &untaggedTestConfig{}
+		},
+	}
+
+	factory := NewFactoryWithUntaggedConfig(
+		receiverType,
+		&mockLifecycleManager{},
+		unmarshaler,
+	)
+
+	cfg := &ReceiverConfig{
+		ScrapeInterval: 30 * time.Second,
+		ExporterConfig: map[string]interface{}{
+			"enable_feature": true,
+			"unknown_field":  "should_fail",
+		},
+	}
+
+	ctx := context.Background()
+	set := receivertest.NewNopSettings(receiverType)
+	consumer := consumertest.NewNop()
+
+	_, err := factory.CreateMetrics(ctx, set, cfg, consumer)
+	if err == nil {
+		t.Fatal("CreateMetrics() expected error for unknown field, got nil")
+	}
+	if !contains(err.Error(), "failed to decode config") {
+		t.Errorf("error = %v, want error containing 'failed to decode config'", err)
+	}
+}
+
+func TestNewFactoryWithUntaggedConfig_DurationHookRequired(t *testing.T) {
+	// Without StringToTimeDurationHookFunc, "45s" can't decode into time.Duration.
+	receiverType := component.MustNewType("test")
+	unmarshaler := &mockConfigUnmarshaler{
+		getConfigStructFunc: func() any {
+			return &untaggedTestConfig{}
+		},
+	}
+
+	factory := NewFactoryWithUntaggedConfig(
+		receiverType,
+		&mockLifecycleManager{},
+		unmarshaler,
+	)
+
+	cfg := &ReceiverConfig{
+		ScrapeInterval: 30 * time.Second,
+		ExporterConfig: map[string]interface{}{
+			"timeout": "45s",
+		},
+	}
+
+	ctx := context.Background()
+	set := receivertest.NewNopSettings(receiverType)
+	consumer := consumertest.NewNop()
+
+	_, err := factory.CreateMetrics(ctx, set, cfg, consumer)
+	if err == nil {
+		t.Fatal("expected decode error without duration hook, got nil")
+	}
+}
+
+// taggedDurationConfig exercises WithDecodeHooks on the tagged decoder path.
+type taggedDurationConfig struct {
+	Timeout time.Duration `mapstructure:"timeout"`
+}
+
+func TestNewFactory_DecodeHooksApply(t *testing.T) {
+	receiverType := component.MustNewType("test")
+	unmarshaler := &mockConfigUnmarshaler{
+		getConfigStructFunc: func() any {
+			return &taggedDurationConfig{}
+		},
+	}
+
+	factory := NewFactory(
+		receiverType,
+		&mockLifecycleManager{},
+		unmarshaler,
+		WithDecodeHooks(mapstructure.StringToTimeDurationHookFunc()),
+	)
+
+	cfg := &ReceiverConfig{
+		ScrapeInterval: 30 * time.Second,
+		ExporterConfig: map[string]interface{}{
+			"timeout": "45s",
+		},
+	}
+
+	ctx := context.Background()
+	set := receivertest.NewNopSettings(receiverType)
+	consumer := consumertest.NewNop()
+
+	if _, err := factory.CreateMetrics(ctx, set, cfg, consumer); err != nil {
+		t.Fatalf("CreateMetrics() failed: %v", err)
+	}
+
+	got, ok := cfg.exporterConfigInstance.(*taggedDurationConfig)
+	if !ok {
+		t.Fatalf("exporterConfigInstance has wrong type: %T", cfg.exporterConfigInstance)
+	}
+	if got.Timeout != 45*time.Second {
+		t.Errorf("Timeout = %v, want 45s", got.Timeout)
+	}
+}
+
+func TestWithDecodeHooks_Composition(t *testing.T) {
+	// Multiple hooks should compose: a custom string→int hook runs alongside
+	// the standard duration hook.
+	customHook := func(_, _ reflect.Type, data any) (any, error) {
+		if s, ok := data.(string); ok && s == "MAGIC" {
+			return 42, nil
+		}
+		return data, nil
+	}
+
+	type customConfig struct {
+		Port    int           `mapstructure:"port"`
+		Timeout time.Duration `mapstructure:"timeout"`
+	}
+
+	receiverType := component.MustNewType("test")
+	unmarshaler := &mockConfigUnmarshaler{
+		getConfigStructFunc: func() any { return &customConfig{} },
+	}
+
+	factory := NewFactory(
+		receiverType,
+		&mockLifecycleManager{},
+		unmarshaler,
+		WithDecodeHooks(
+			customHook,
+			mapstructure.StringToTimeDurationHookFunc(),
+		),
+	)
+
+	cfg := &ReceiverConfig{
+		ScrapeInterval: 30 * time.Second,
+		ExporterConfig: map[string]interface{}{
+			"port":    "MAGIC",
+			"timeout": "1s",
+		},
+	}
+
+	ctx := context.Background()
+	set := receivertest.NewNopSettings(receiverType)
+	consumer := consumertest.NewNop()
+
+	if _, err := factory.CreateMetrics(ctx, set, cfg, consumer); err != nil {
+		t.Fatalf("CreateMetrics() failed: %v", err)
+	}
+
+	got := cfg.exporterConfigInstance.(*customConfig)
+	if got.Port != 42 {
+		t.Errorf("Port = %d, want 42 (custom hook)", got.Port)
+	}
+	if got.Timeout != time.Second {
+		t.Errorf("Timeout = %v, want 1s (duration hook)", got.Timeout)
+	}
+}
+
+func TestNewFactoryWithUntaggedConfig_CaseInsensitiveMatching(t *testing.T) {
+	// YAML keys can arrive in arbitrary casing; matching strips underscores
+	// from the key and compares case-insensitively. The exact-Go-field-name
+	// case is interesting: mapstructure's direct lookup runs before MatchName,
+	// so it would still pass even if MatchName were broken — assert it
+	// explicitly to prevent silent regressions of either path.
+	tests := []struct {
+		name string
+		key  string
+	}{
+		{"snake_case", "http_timeout"},
+		{"ALL_CAPS", "HTTP_TIMEOUT"},
+		{"no underscore lowercase", "httptimeout"},
+		{"mixed case", "HttpTimeout"},
+		{"exact Go name", "HTTPTimeout"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			receiverType := component.MustNewType("test")
+			unmarshaler := &mockConfigUnmarshaler{
+				getConfigStructFunc: func() any {
+					return &untaggedTestConfig{}
+				},
+			}
+
+			factory := NewFactoryWithUntaggedConfig(
+				receiverType,
+				&mockLifecycleManager{},
+				unmarshaler,
+				WithDecodeHooks(mapstructure.StringToTimeDurationHookFunc()),
+			)
+
+			cfg := &ReceiverConfig{
+				ScrapeInterval: 30 * time.Second,
+				ExporterConfig: map[string]interface{}{
+					tt.key: "10s",
+				},
+			}
+
+			ctx := context.Background()
+			set := receivertest.NewNopSettings(receiverType)
+			consumer := consumertest.NewNop()
+
+			if _, err := factory.CreateMetrics(ctx, set, cfg, consumer); err != nil {
+				t.Fatalf("CreateMetrics() failed: %v", err)
+			}
+
+			got := cfg.exporterConfigInstance.(*untaggedTestConfig)
+			if got.HTTPTimeout != 10*time.Second {
+				t.Errorf("HTTPTimeout = %v, want 10s (key=%q)", got.HTTPTimeout, tt.key)
+			}
+		})
+	}
+}
+
+func TestNewFactoryWithUntaggedConfig_TypeMismatch(t *testing.T) {
+	receiverType := component.MustNewType("test")
+	unmarshaler := &mockConfigUnmarshaler{
+		getConfigStructFunc: func() any {
+			return &untaggedTestConfig{}
+		},
+	}
+
+	factory := NewFactoryWithUntaggedConfig(
+		receiverType,
+		&mockLifecycleManager{},
+		unmarshaler,
+	)
+
+	tests := []struct {
+		name           string
+		exporterConfig map[string]interface{}
+	}{
+		{
+			name:           "bool field with string value",
+			exporterConfig: map[string]interface{}{"enable_feature": "not_a_bool"},
+		},
+		{
+			name:           "int field with string value",
+			exporterConfig: map[string]interface{}{"port": "not_a_number"},
+		},
+		{
+			name:           "string slice with single string",
+			exporterConfig: map[string]interface{}{"items": "not_an_array"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &ReceiverConfig{
+				ScrapeInterval: 30 * time.Second,
+				ExporterConfig: tt.exporterConfig,
+			}
+
+			ctx := context.Background()
+			set := receivertest.NewNopSettings(receiverType)
+			consumer := consumertest.NewNop()
+
+			_, err := factory.CreateMetrics(ctx, set, cfg, consumer)
+			if err == nil {
+				t.Fatal("CreateMetrics() expected type-mismatch error, got nil")
+			}
+			if !contains(err.Error(), "failed to decode config") {
+				t.Errorf("error = %v, want error containing 'failed to decode config'", err)
+			}
+		})
+	}
+}
+
+// mixedTagConfig has one field with a mapstructure tag and one without.
+// The tagged field decodes under its tag; the untagged field falls back
+// to case-insensitive name matching.
+type mixedTagConfig struct {
+	Aliased string `mapstructure:"renamed"`
+	Plain   string
+}
+
+func TestNewFactoryWithUntaggedConfig_HonorsTagsWhenPresent(t *testing.T) {
+	receiverType := component.MustNewType("test")
+	unmarshaler := &mockConfigUnmarshaler{
+		getConfigStructFunc: func() any { return &mixedTagConfig{} },
+	}
+
+	factory := NewFactoryWithUntaggedConfig(
+		receiverType,
+		&mockLifecycleManager{},
+		unmarshaler,
+	)
+
+	cfg := &ReceiverConfig{
+		ScrapeInterval: 30 * time.Second,
+		ExporterConfig: map[string]interface{}{
+			"renamed": "from-tag",
+			"plain":   "from-matchname",
+		},
+	}
+
+	ctx := context.Background()
+	set := receivertest.NewNopSettings(receiverType)
+	consumer := consumertest.NewNop()
+
+	if _, err := factory.CreateMetrics(ctx, set, cfg, consumer); err != nil {
+		t.Fatalf("CreateMetrics() failed: %v", err)
+	}
+
+	got := cfg.exporterConfigInstance.(*mixedTagConfig)
+	if got.Aliased != "from-tag" {
+		t.Errorf("Aliased = %q, want 'from-tag' (tag should win)", got.Aliased)
+	}
+	if got.Plain != "from-matchname" {
+		t.Errorf("Plain = %q, want 'from-matchname'", got.Plain)
+	}
+}
+
+func TestWithDecodeHooks_Accumulates(t *testing.T) {
+	// Successive WithDecodeHooks calls should accumulate, not replace.
+	// Use two hooks that target different fields so we can prove both ran.
+	intHook := func(_, _ reflect.Type, data any) (any, error) {
+		if s, ok := data.(string); ok && s == "INT" {
+			return 7, nil
+		}
+		return data, nil
+	}
+	stringHook := func(_, _ reflect.Type, data any) (any, error) {
+		if s, ok := data.(string); ok && s == "STR" {
+			return "rewritten", nil
+		}
+		return data, nil
+	}
+
+	type accConfig struct {
+		Port int    `mapstructure:"port"`
+		Name string `mapstructure:"name"`
+	}
+
+	receiverType := component.MustNewType("test")
+	unmarshaler := &mockConfigUnmarshaler{
+		getConfigStructFunc: func() any { return &accConfig{} },
+	}
+
+	factory := NewFactory(
+		receiverType,
+		&mockLifecycleManager{},
+		unmarshaler,
+		WithDecodeHooks(intHook),
+		WithDecodeHooks(stringHook),
+	)
+
+	cfg := &ReceiverConfig{
+		ScrapeInterval: 30 * time.Second,
+		ExporterConfig: map[string]interface{}{
+			"port": "INT",
+			"name": "STR",
+		},
+	}
+
+	ctx := context.Background()
+	set := receivertest.NewNopSettings(receiverType)
+	consumer := consumertest.NewNop()
+
+	if _, err := factory.CreateMetrics(ctx, set, cfg, consumer); err != nil {
+		t.Fatalf("CreateMetrics() failed: %v", err)
+	}
+
+	got := cfg.exporterConfigInstance.(*accConfig)
+	if got.Port != 7 {
+		t.Errorf("Port = %d, want 7 (intHook from first WithDecodeHooks call)", got.Port)
+	}
+	if got.Name != "rewritten" {
+		t.Errorf("Name = %q, want 'rewritten' (stringHook from second WithDecodeHooks call)", got.Name)
+	}
 }

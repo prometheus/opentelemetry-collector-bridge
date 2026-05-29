@@ -60,9 +60,9 @@
 //	    return nil
 //	}
 //
-// ## Config decoding: two approaches
+// ## Config decoding: three approaches
 //
-// The bridge supports two factory variants depending on how you want the
+// The bridge supports three factory variants depending on how you want the
 // exporter's YAML configuration decoded.
 //
 // Approach 1: mapstructure tags on the exporter's config (NewFactory).
@@ -88,7 +88,45 @@
 // Use this when the receiver and the exporter live in the same module, or
 // when adding mapstructure tags to the exporter's config struct is fine.
 //
-// Approach 2: custom decoder (NewFactoryWithDecoder).
+// Approach 2: untagged config struct (NewFactoryWithUntaggedConfig).
+//
+//	// Exporter-side config, no OTel-specific tags.
+//	type MyConfig struct {
+//	    EnableFeature bool
+//	    Timeout       time.Duration
+//	    HTTPTimeout   time.Duration
+//	    Items         []string
+//	}
+//
+//	type MyConfigUnmarshaler struct{}
+//
+//	func (u *MyConfigUnmarshaler) GetConfigStruct() any {
+//	    return &MyConfig{}
+//	}
+//
+//	factory := prometheuscollectorbridge.NewFactoryWithUntaggedConfig(
+//	    component.MustNewType("prometheus/myexporter"),
+//	    &MyExporterLifecycleManager{},
+//	    &MyConfigUnmarshaler{},
+//	    prometheuscollectorbridge.WithDecodeHooks(
+//	        mapstructure.StringToTimeDurationHookFunc(),
+//	    ),
+//	)
+//
+// YAML keys are matched against Go field names case-insensitively, after
+// underscores in the key are stripped — `http_timeout` matches `HTTPTimeout`,
+// `enable_feature` matches `EnableFeature`. Pair with WithDecodeHooks to add
+// type conversions (e.g. string → time.Duration). Use this when the exporter
+// is a separate package whose config struct should stay free of OTel/YAML
+// tags but the default mapstructure semantics (unknown-field rejection,
+// case-insensitive matching) otherwise suit.
+//
+// Fields that carry a `mapstructure:"..."` tag are decoded under that tag
+// name; the case-insensitive matcher is used only when no tag matches. This
+// lets a struct shared with another consumer keep its existing tags without
+// switching factory variants.
+//
+// Approach 3: fully custom decoder (NewFactoryWithDecoder).
 //
 //	type myDecoder struct{}
 //
@@ -103,11 +141,10 @@
 //	    myDecoder{},
 //	)
 //
-// Use this when the exporter is a separate package whose config struct should
-// stay free of OTel/YAML-specific concerns (no mapstructure tags), or when
-// the default mapstructure setup doesn't fit your decoding needs. This is
-// the right path for receivers that wrap an upstream exporter without
-// modifying the exporter package.
+// Use this when neither Approach 1 nor Approach 2 fits — e.g. multi-pass
+// decoding, custom error semantics, or transformations that can't be
+// expressed as mapstructure hooks. WithDecodeHooks has no effect with this
+// variant; configure hooks inside your decoder.
 //
 // ## Component defaults
 //
@@ -138,10 +175,9 @@
 //	      items: ["item1", "item2"]
 //
 // The bridge always validates scrape_interval (must be greater than 0).
-// Decoding semantics for the exporter_config block depend on the factory
-// variant: NewFactory rejects unknown fields and catches type mismatches via
-// mapstructure; NewFactoryWithDecoder behaves however your decoder is set
-// up.
+// NewFactory and NewFactoryWithUntaggedConfig both reject unknown fields in
+// the exporter_config block and surface type mismatches via mapstructure.
+// NewFactoryWithDecoder defers to your decoder.
 //
 // # Validation
 //
