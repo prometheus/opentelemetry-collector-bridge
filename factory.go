@@ -82,7 +82,7 @@ func WithDecodeHooks(hooks ...mapstructure.DecodeHookFunc) FactoryOption {
 // to manage the exporter lifecycle and configuration.
 //
 // NewFactory assumes that configUnmarshaler uses mapstructure tags. If your
-// exporter's config struct should remain free of OTel/YAML-specific tags,
+// exporter's config struct should remain free of mapstructure tags,
 // use NewFactoryWithUntaggedConfig. For a fully custom decoding strategy,
 // use NewFactoryWithDecoder.
 func NewFactory(

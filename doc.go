@@ -90,7 +90,7 @@
 //
 // Approach 2: untagged config struct (NewFactoryWithUntaggedConfig).
 //
-//	// Exporter-side config, no OTel-specific tags.
+//	// Exporter-side config, no mapstructure tags.
 //	type MyConfig struct {
 //	    EnableFeature bool
 //	    Timeout       time.Duration
