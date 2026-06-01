@@ -214,14 +214,12 @@ func createMetricsReceiver(
 			return nil, fmt.Errorf("invalid config type: %T", cfg)
 		}
 
-		if len(receiverCfg.ExporterConfig) > 0 {
-			exporterCfg, err := configDecoder.DecodeConfig(receiverCfg.ExporterConfig)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode config: %w", err)
-			}
-
-			receiverCfg.exporterConfigInstance = exporterCfg
+		exporterCfg, err := configDecoder.DecodeConfig(receiverCfg.ExporterConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode config: %w", err)
 		}
+
+		receiverCfg.exporterConfigInstance = exporterCfg
 
 		if err := receiverCfg.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid configuration: %w", err)
