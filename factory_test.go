@@ -308,30 +308,70 @@ func TestNewFactory_DefaultConfig(t *testing.T) {
 	}
 }
 
-func TestCreateMetricsReceiver_EmptyExporterConfig(t *testing.T) {
-	receiverType := component.MustNewType("test")
-	factory := NewFactory(
-		receiverType,
-		&mockLifecycleManager{},
-		&mockConfigUnmarshaler{},
-	)
-
-	cfg := &ReceiverConfig{
-		ScrapeInterval: 30 * time.Second,
-		ExporterConfig: map[string]interface{}{},
+func TestCreateMetricsReceiver_EmptyExporterConfigDecodesDefaultConfig(t *testing.T) {
+	tests := []struct {
+		name           string
+		exporterConfig map[string]interface{}
+	}{
+		{
+			name:           "nil exporter config",
+			exporterConfig: nil,
+		},
+		{
+			name:           "empty exporter config",
+			exporterConfig: map[string]interface{}{},
+		},
 	}
 
-	ctx := context.Background()
-	set := receivertest.NewNopSettings(receiverType)
-	consumer := consumertest.NewNop()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			receiverType := component.MustNewType("test")
+			unmarshaler := &mockConfigUnmarshaler{
+				getConfigStructFunc: func() any {
+					return &testExporterConfig{
+						Timeout: "default-timeout",
+						Items:   []string{"default-item"},
+						Port:    8080,
+					}
+				},
+			}
+			factory := NewFactory(
+				receiverType,
+				&mockLifecycleManager{},
+				unmarshaler,
+			)
 
-	receiver, err := factory.CreateMetrics(ctx, set, cfg, consumer)
-	if err != nil {
-		t.Fatalf("CreateMetrics() failed: %v", err)
-	}
+			cfg := &ReceiverConfig{
+				ScrapeInterval: 30 * time.Second,
+				ExporterConfig: tt.exporterConfig,
+			}
 
-	if receiver == nil {
-		t.Error("CreateMetrics() returned nil receiver")
+			ctx := context.Background()
+			set := receivertest.NewNopSettings(receiverType)
+			consumer := consumertest.NewNop()
+
+			receiver, err := factory.CreateMetrics(ctx, set, cfg, consumer)
+			if err != nil {
+				t.Fatalf("CreateMetrics() failed: %v", err)
+			}
+			if receiver == nil {
+				t.Fatal("CreateMetrics() returned nil receiver")
+			}
+
+			got, ok := cfg.exporterConfigInstance.(*testExporterConfig)
+			if !ok {
+				t.Fatalf("exporterConfigInstance has wrong type: %T", cfg.exporterConfigInstance)
+			}
+			if got.Timeout != "default-timeout" {
+				t.Errorf("Timeout = %q, want default-timeout", got.Timeout)
+			}
+			if got.Port != 8080 {
+				t.Errorf("Port = %d, want 8080", got.Port)
+			}
+			if len(got.Items) != 1 || got.Items[0] != "default-item" {
+				t.Errorf("Items = %#v, want [default-item]", got.Items)
+			}
+		})
 	}
 }
 
