@@ -16,6 +16,7 @@ package prometheuscollectorbridge
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
@@ -55,6 +56,7 @@ type FactoryOption func(*factoryConfig)
 
 type factoryConfig struct {
 	defaultConfig map[string]interface{}
+	decodeHooks   []mapstructure.DecodeHookFunc
 }
 
 // WithComponentDefaults sets the default configuration for the component.
@@ -64,12 +66,25 @@ func WithComponentDefaults(defaults map[string]interface{}) FactoryOption {
 	}
 }
 
+// WithDecodeHooks adds mapstructure decode hooks applied when the bridge
+// decodes the exporter's config. Hooks are composed in the order given;
+// successive calls accumulate. Applies to NewFactory and
+// NewFactoryWithUntaggedConfig; ignored by NewFactoryWithDecoder — configure
+// hooks inside the caller-provided decoder instead.
+func WithDecodeHooks(hooks ...mapstructure.DecodeHookFunc) FactoryOption {
+	return func(cfg *factoryConfig) {
+		cfg.decodeHooks = append(cfg.decodeHooks, hooks...)
+	}
+}
+
 // NewFactory creates a new receiver factory for a Prometheus exporter.
 // The factory uses the provided type, ExporterLifecycleManager, and ConfigUnmarshaler
 // to manage the exporter lifecycle and configuration.
 //
-// NewFactory assumes that configUnmarshaler uses mapstructure tags.
-// If you need a decoder that does not use mapstructure tags, use NewFactoryWithDecoder.
+// NewFactory assumes that configUnmarshaler uses mapstructure tags. If your
+// exporter's config struct should remain free of mapstructure tags,
+// use NewFactoryWithUntaggedConfig. For a fully custom decoding strategy,
+// use NewFactoryWithDecoder.
 func NewFactory(
 	typeStr component.Type,
 	lifecycleManager ExporterLifecycleManager,
@@ -83,7 +98,46 @@ func NewFactory(
 	return newFactory(
 		typeStr,
 		lifecycleManager,
-		mapstructureConfigDecoder{unmarshaler: configUnmarshaler},
+		func(cfg *factoryConfig) ConfigDecoder {
+			return mapstructureConfigDecoder{
+				unmarshaler: configUnmarshaler,
+				decodeHooks: cfg.decodeHooks,
+			}
+		},
+		opts...,
+	)
+}
+
+// NewFactoryWithUntaggedConfig creates a new receiver factory for a Prometheus
+// exporter whose config struct doesn't require mapstructure tags. Fields are
+// matched case-insensitively after stripping underscores from the YAML key —
+// e.g. `http_timeout` matches a Go field named `HTTPTimeout`. Use this when
+// the exporter's config struct is shared with non-OTel use cases and
+// shouldn't carry OTel-specific tags.
+//
+// Tags are honored when present: mapstructure's direct lookup on the
+// `mapstructure:"..."` tag runs first, and the case-insensitive matcher is
+// used only as a fallback. This lets struct fields that happen to carry
+// tags for another consumer decode under their tag name.
+func NewFactoryWithUntaggedConfig(
+	typeStr component.Type,
+	lifecycleManager ExporterLifecycleManager,
+	configUnmarshaler ConfigUnmarshaler,
+	opts ...FactoryOption,
+) receiver.Factory {
+	if configUnmarshaler == nil {
+		panic("config unmarshaler must not be nil")
+	}
+
+	return newFactory(
+		typeStr,
+		lifecycleManager,
+		func(cfg *factoryConfig) ConfigDecoder {
+			return untaggedConfigDecoder{
+				unmarshaler: configUnmarshaler,
+				decodeHooks: cfg.decodeHooks,
+			}
+		},
 		opts...,
 	)
 }
@@ -91,6 +145,9 @@ func NewFactory(
 // NewFactoryWithDecoder creates a new receiver factory for a Prometheus exporter.
 // The factory uses the provided type, ExporterLifecycleManager, and ConfigDecoder
 // to manage the exporter lifecycle and configuration.
+//
+// WithDecodeHooks has no effect with this variant; configure hooks inside
+// the caller-provided decoder.
 func NewFactoryWithDecoder(
 	typeStr component.Type,
 	lifecycleManager ExporterLifecycleManager,
@@ -101,13 +158,15 @@ func NewFactoryWithDecoder(
 		panic("config decoder must not be nil")
 	}
 
-	return newFactory(typeStr, lifecycleManager, configDecoder, opts...)
+	return newFactory(typeStr, lifecycleManager, func(*factoryConfig) ConfigDecoder {
+		return configDecoder
+	}, opts...)
 }
 
 func newFactory(
 	typeStr component.Type,
 	lifecycleManager ExporterLifecycleManager,
-	configDecoder ConfigDecoder,
+	buildDecoder func(*factoryConfig) ConfigDecoder,
 	opts ...FactoryOption,
 ) receiver.Factory {
 	if typeStr.String() == "" {
@@ -121,6 +180,8 @@ func newFactory(
 	for _, opt := range opts {
 		opt(cfg)
 	}
+
+	configDecoder := buildDecoder(cfg)
 
 	componentDefaultsFunc := func() component.Config {
 		receiverConfig := createDefaultConfig()
@@ -177,6 +238,7 @@ func createMetricsReceiver(
 
 type mapstructureConfigDecoder struct {
 	unmarshaler ConfigUnmarshaler
+	decodeHooks []mapstructure.DecodeHookFunc
 }
 
 // DecodeConfig implements the ConfigDecoder interface using mapstructure.
@@ -187,6 +249,7 @@ func (d mapstructureConfigDecoder) DecodeConfig(raw map[string]interface{}) (any
 		ErrorUnused:      true,
 		WeaklyTypedInput: false,
 		TagName:          "mapstructure",
+		DecodeHook:       composeDecodeHooks(d.decodeHooks),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create decoder: %w", err)
@@ -196,4 +259,43 @@ func (d mapstructureConfigDecoder) DecodeConfig(raw map[string]interface{}) (any
 		return nil, err
 	}
 	return exporterCfg, nil
+}
+
+type untaggedConfigDecoder struct {
+	unmarshaler ConfigUnmarshaler
+	decodeHooks []mapstructure.DecodeHookFunc
+}
+
+// DecodeConfig implements the ConfigDecoder interface using mapstructure with
+// case-insensitive name matching that ignores underscores in YAML keys, so
+// `http_timeout` matches a Go field named `HTTPTimeout` without any tag.
+func (d untaggedConfigDecoder) DecodeConfig(raw map[string]interface{}) (any, error) {
+	exporterCfg := d.unmarshaler.GetConfigStruct()
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result:      exporterCfg,
+		ErrorUnused: true,
+		MatchName: func(mapKey, fieldName string) bool {
+			return strings.EqualFold(strings.ReplaceAll(mapKey, "_", ""), fieldName)
+		},
+		DecodeHook: composeDecodeHooks(d.decodeHooks),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create decoder: %w", err)
+	}
+
+	if err := decoder.Decode(raw); err != nil {
+		return nil, err
+	}
+	return exporterCfg, nil
+}
+
+func composeDecodeHooks(hooks []mapstructure.DecodeHookFunc) mapstructure.DecodeHookFunc {
+	switch len(hooks) {
+	case 0:
+		return nil
+	case 1:
+		return hooks[0]
+	default:
+		return mapstructure.ComposeDecodeHookFunc(hooks...)
+	}
 }
