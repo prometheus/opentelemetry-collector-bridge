@@ -148,19 +148,25 @@
 //
 // ## Component defaults
 //
-// The OTel framework merges defaults onto the user's YAML before the bridge
-// decodes it. Pass WithComponentDefaults to seed those defaults:
+// The OTel framework renders a default config and merges it under the user's
+// YAML. NewFactory and NewFactoryWithUntaggedConfig derive that default from
+// GetConfigStruct(): the returned struct's field values become the rendered
+// defaults, keyed by mapstructure tag or snake_cased field name respectively
+// (time.Duration fields render as their string form, so pair a config with
+// time.Duration fields with WithDecodeHooks(mapstructure.StringToTimeDurationHookFunc())
+// so those defaults decode back). Return a defaulted struct from
+// GetConfigStruct() and the component defaults follow.
 //
-//	factory := prometheuscollectorbridge.NewFactory(
-//	    typ, lifecycle, unmarshaler,
+// Pass WithComponentDefaults to override the derived map. It is required for
+// NewFactoryWithDecoder, which has no config struct to derive from:
+//
+//	factory := prometheuscollectorbridge.NewFactoryWithDecoder(
+//	    typ, lifecycle, myDecoder{},
 //	    prometheuscollectorbridge.WithComponentDefaults(map[string]interface{}{
 //	        "timeout":        "30s",
 //	        "enable_feature": true,
 //	    }),
 //	)
-//
-// Without this, partial configs (where the user omits a field) decode as the
-// field's zero value rather than your intended default.
 //
 // # Configuration
 //

@@ -16,7 +16,6 @@ package prometheuscollectorbridge
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
@@ -59,7 +58,11 @@ type factoryConfig struct {
 	decodeHooks   []mapstructure.DecodeHookFunc
 }
 
-// WithComponentDefaults sets the default configuration for the component.
+// WithComponentDefaults sets the component's default exporter configuration,
+// overriding the defaults NewFactory and NewFactoryWithUntaggedConfig otherwise
+// derive from the config struct. Use it for NewFactoryWithDecoder (which has no
+// struct to derive from) or when the rendered defaults need finer control than
+// reflecting the struct provides.
 func WithComponentDefaults(defaults map[string]interface{}) FactoryOption {
 	return func(cfg *factoryConfig) {
 		cfg.defaultConfig = defaults
@@ -85,6 +88,9 @@ func WithDecodeHooks(hooks ...mapstructure.DecodeHookFunc) FactoryOption {
 // exporter's config struct should remain free of mapstructure tags,
 // use NewFactoryWithUntaggedConfig. For a fully custom decoding strategy,
 // use NewFactoryWithDecoder.
+//
+// The component's default configuration is derived from GetConfigStruct(),
+// keyed by mapstructure tag. Pass WithComponentDefaults to override.
 func NewFactory(
 	typeStr component.Type,
 	lifecycleManager ExporterLifecycleManager,
@@ -104,7 +110,7 @@ func NewFactory(
 				decodeHooks: cfg.decodeHooks,
 			}
 		},
-		opts...,
+		withDerivedDefaults(configUnmarshaler.GetConfigStruct(), taggedFieldKey, opts)...,
 	)
 }
 
@@ -119,6 +125,9 @@ func NewFactory(
 // `mapstructure:"..."` tag runs first, and the case-insensitive matcher is
 // used only as a fallback. This lets struct fields that happen to carry
 // tags for another consumer decode under their tag name.
+//
+// The component's default configuration is derived from GetConfigStruct(),
+// keyed by snake_casing its field names. Pass WithComponentDefaults to override.
 func NewFactoryWithUntaggedConfig(
 	typeStr component.Type,
 	lifecycleManager ExporterLifecycleManager,
@@ -138,7 +147,7 @@ func NewFactoryWithUntaggedConfig(
 				decodeHooks: cfg.decodeHooks,
 			}
 		},
-		opts...,
+		withDerivedDefaults(configUnmarshaler.GetConfigStruct(), untaggedFieldKey, opts)...,
 	)
 }
 
@@ -272,10 +281,8 @@ func (d untaggedConfigDecoder) DecodeConfig(raw map[string]interface{}) (any, er
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		Result:      exporterCfg,
 		ErrorUnused: true,
-		MatchName: func(mapKey, fieldName string) bool {
-			return strings.EqualFold(strings.ReplaceAll(mapKey, "_", ""), fieldName)
-		},
-		DecodeHook: composeDecodeHooks(d.decodeHooks),
+		MatchName:   matchUntaggedKey,
+		DecodeHook:  composeDecodeHooks(d.decodeHooks),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create decoder: %w", err)
