@@ -235,32 +235,36 @@ func TestNewFactoryWithDecoder_Panics(t *testing.T) {
 }
 
 func TestNewFactory_DefaultConfig(t *testing.T) {
+	// The defaulted struct the factory derives component defaults from.
+	defaulted := func() any {
+		return &testExporterConfig{
+			EnableFeature: true,
+			Timeout:       "30s",
+			Items:         []string{"a", "b"},
+			Port:          9090,
+		}
+	}
+
 	tests := []struct {
-		name               string
-		opts               []FactoryOption
-		wantScrapeInterval time.Duration
-		wantExporterConfig map[string]interface{}
+		name string
+		opts []FactoryOption
+		want map[string]interface{}
 	}{
 		{
-			name:               "default config without component defaults",
-			wantScrapeInterval: 30 * time.Second,
-			wantExporterConfig: nil,
-		},
-		{
-			name: "default config with component defaults",
-			opts: []FactoryOption{
-				WithComponentDefaults(map[string]interface{}{
-					"enable_feature": true,
-					"timeout":        "30s",
-					"port":           8080,
-				}),
-			},
-			wantScrapeInterval: 30 * time.Second,
-			wantExporterConfig: map[string]interface{}{
+			name: "derived from config struct",
+			want: map[string]interface{}{
 				"enable_feature": true,
 				"timeout":        "30s",
-				"port":           8080,
+				"items":          []string{"a", "b"},
+				"port":           9090,
 			},
+		},
+		{
+			name: "explicit component defaults override derivation",
+			opts: []FactoryOption{
+				WithComponentDefaults(map[string]interface{}{"enable_feature": false}),
+			},
+			want: map[string]interface{}{"enable_feature": false},
 		},
 	}
 
@@ -269,40 +273,23 @@ func TestNewFactory_DefaultConfig(t *testing.T) {
 			factory := NewFactory(
 				component.MustNewType("test"),
 				&mockLifecycleManager{},
-				&mockConfigUnmarshaler{},
+				&mockConfigUnmarshaler{getConfigStructFunc: defaulted},
 				tt.opts...,
 			)
 			if factory == nil {
 				t.Fatal("NewFactory() returned nil")
 			}
 
-			cfg := factory.CreateDefaultConfig()
-			receiverCfg, ok := cfg.(*ReceiverConfig)
+			receiverCfg, ok := factory.CreateDefaultConfig().(*ReceiverConfig)
 			if !ok {
-				t.Fatalf("CreateDefaultConfig() returned wrong type: %T", cfg)
+				t.Fatalf("CreateDefaultConfig() returned wrong type")
 			}
 
-			if receiverCfg.ScrapeInterval != tt.wantScrapeInterval {
-				t.Errorf("ScrapeInterval = %v, want %v", receiverCfg.ScrapeInterval, tt.wantScrapeInterval)
+			if receiverCfg.ScrapeInterval != 30*time.Second {
+				t.Errorf("ScrapeInterval = %v, want %v", receiverCfg.ScrapeInterval, 30*time.Second)
 			}
-
-			if tt.wantExporterConfig == nil {
-				if receiverCfg.ExporterConfig != nil {
-					t.Errorf("ExporterConfig = %v, want nil", receiverCfg.ExporterConfig)
-				}
-			} else {
-				if receiverCfg.ExporterConfig == nil {
-					t.Error("ExporterConfig is nil, want non-nil")
-				} else {
-					for key, wantVal := range tt.wantExporterConfig {
-						gotVal, exists := receiverCfg.ExporterConfig[key]
-						if !exists {
-							t.Errorf("ExporterConfig missing key %v", key)
-						} else if gotVal != wantVal {
-							t.Errorf("ExporterConfig[%v] = %v, want %v", key, gotVal, wantVal)
-						}
-					}
-				}
+			if !reflect.DeepEqual(receiverCfg.ExporterConfig, tt.want) {
+				t.Errorf("ExporterConfig = %#v, want %#v", receiverCfg.ExporterConfig, tt.want)
 			}
 		})
 	}
