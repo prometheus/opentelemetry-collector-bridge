@@ -50,12 +50,17 @@ type ConfigDecoder interface {
 	DecodeConfig(raw map[string]interface{}) (any, error)
 }
 
+// OTTLStatementProvider returns OTTL statements based on the decoded
+// exporter-specific configuration.
+type OTTLStatementProvider func(exporterConfig any) (OTTLStatements, error)
+
 // FactoryOption is a function that configures a Factory.
 type FactoryOption func(*factoryConfig)
 
 type factoryConfig struct {
-	defaultConfig map[string]interface{}
-	decodeHooks   []mapstructure.DecodeHookFunc
+	defaultConfig         map[string]interface{}
+	decodeHooks           []mapstructure.DecodeHookFunc
+	ottlStatementProvider OTTLStatementProvider
 }
 
 // WithComponentDefaults sets the component's default exporter configuration,
@@ -77,6 +82,25 @@ func WithComponentDefaults(defaults map[string]interface{}) FactoryOption {
 func WithDecodeHooks(hooks ...mapstructure.DecodeHookFunc) FactoryOption {
 	return func(cfg *factoryConfig) {
 		cfg.decodeHooks = append(cfg.decodeHooks, hooks...)
+	}
+}
+
+// WithOTTLStatements configures OTTL transformations that run after the
+// Prometheus exporter metrics are converted to OTLP and before they are sent to
+// the Collector pipeline.
+func WithOTTLStatements(statements OTTLStatements) FactoryOption {
+	return func(cfg *factoryConfig) {
+		cfg.ottlStatementProvider = func(any) (OTTLStatements, error) {
+			return statements.clone(), nil
+		}
+	}
+}
+
+// WithOTTLStatementProvider configures OTTL transformations based on the
+// decoded exporter-specific configuration.
+func WithOTTLStatementProvider(provider OTTLStatementProvider) FactoryOption {
+	return func(cfg *factoryConfig) {
+		cfg.ottlStatementProvider = provider
 	}
 }
 
@@ -202,7 +226,7 @@ func newFactory(
 		typeStr,
 		componentDefaultsFunc,
 		receiver.WithMetrics(
-			createMetricsReceiver(lifecycleManager, configDecoder),
+			createMetricsReceiver(lifecycleManager, configDecoder, cfg.ottlStatementProvider),
 			component.StabilityLevelAlpha,
 		),
 	)
@@ -211,6 +235,7 @@ func newFactory(
 func createMetricsReceiver(
 	lifecycleManager ExporterLifecycleManager,
 	configDecoder ConfigDecoder,
+	ottlStatementProvider OTTLStatementProvider,
 ) receiver.CreateMetricsFunc {
 	return func(
 		_ context.Context,
@@ -234,11 +259,21 @@ func createMetricsReceiver(
 			return nil, fmt.Errorf("invalid configuration: %w", err)
 		}
 
+		var ottlStatements OTTLStatements
+		if ottlStatementProvider != nil {
+			var err error
+			ottlStatements, err = ottlStatementProvider(exporterCfg)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create OTTL statements: %w", err)
+			}
+		}
+
 		return newPrometheusReceiver(
 			receiverCfg,
 			consumer,
 			set,
 			lifecycleManager,
+			ottlStatements,
 		), nil
 	}
 }
