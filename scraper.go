@@ -34,12 +34,14 @@ type scraper struct {
 	logger       *zap.Logger
 	producer     metric.Producer
 	receiverType string
+	transform    *metricsTransform
 }
 
 func newScraper(
 	registry *prometheus.Registry,
 	receiverType component.Type,
 	logger *zap.Logger,
+	transform *metricsTransform,
 ) *scraper {
 	producer := otelbridge.NewMetricProducer(
 		otelbridge.WithGatherer(registry),
@@ -49,6 +51,7 @@ func newScraper(
 		logger:       logger,
 		producer:     producer,
 		receiverType: receiverType.String(),
+		transform:    transform,
 	}
 }
 
@@ -73,6 +76,10 @@ func (s *scraper) ScrapeMetrics(ctx context.Context) (pmetric.Metrics, error) {
 	}
 
 	metrics := s.convert(scopeMetrics)
+	metrics, err = s.transform.Apply(ctx, metrics)
+	if err != nil {
+		return pmetric.Metrics{}, fmt.Errorf("failed to transform metrics: %w", err)
+	}
 
 	s.logger.Debug("Finished scraping metrics",
 		zap.Int("metrics", metrics.ResourceMetrics().Len()))

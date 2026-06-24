@@ -19,13 +19,14 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/component/componenttest"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
 )
 
 func TestScraper_EmptyRegistry(t *testing.T) {
 	registry := prometheus.NewRegistry()
-	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
+	s := newScraper(registry, component.MustNewType("test"), zap.NewNop(), nil)
 
 	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
@@ -47,7 +48,7 @@ func TestScraper_ResourceAttributes(t *testing.T) {
 	gauge.Set(42)
 
 	receiverType := component.MustNewType("myexporter")
-	s := newScraper(registry, receiverType, zap.NewNop())
+	s := newScraper(registry, receiverType, zap.NewNop(), nil)
 
 	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
@@ -65,6 +66,138 @@ func TestScraper_ResourceAttributes(t *testing.T) {
 	}
 	if val.Str() != "myexporter" {
 		t.Errorf("service.name = %q, want %q", val.Str(), "myexporter")
+	}
+}
+
+func TestScraper_AppliesOTTLStatements(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "pg_database_size_bytes",
+		Help: "Disk space used by the database",
+	}, []string{"datname"})
+	registry.MustRegister(gauge)
+	gauge.WithLabelValues("demo").Set(42)
+
+	transform, err := newMetricsTransform(componenttest.NewNopTelemetrySettings(), OTTLStatements{
+		MetricStatements: []string{
+			`set(metric.name, "db.server.postgresql.database.size.bytes") where metric.name == "pg_database_size_bytes"`,
+			`set(metric.unit, "By") where metric.name == "db.server.postgresql.database.size.bytes"`,
+		},
+		DataPointStatements: []string{
+			`set(datapoint.attributes["db.system.name"], "postgresql") where metric.name == "pg_database_size_bytes"`,
+			`set(datapoint.attributes["db.namespace"], datapoint.attributes["datname"]) where datapoint.attributes["datname"] != nil`,
+		},
+	}, nil)
+	if err != nil {
+		t.Fatalf("newMetricsTransform() returned unexpected error: %v", err)
+	}
+
+	s := newScraper(registry, component.MustNewType("test"), zap.NewNop(), transform)
+	metrics, err := s.ScrapeMetrics(context.Background())
+	if err != nil {
+		t.Fatalf("ScrapeMetrics() returned unexpected error: %v", err)
+	}
+
+	metric := findMetric(t, metrics, "db.server.postgresql.database.size.bytes")
+	if metric.Unit() != "By" {
+		t.Fatalf("metric unit = %q, want %q", metric.Unit(), "By")
+	}
+
+	datapoints := metric.Gauge().DataPoints()
+	if datapoints.Len() != 1 {
+		t.Fatalf("expected 1 data point, got %d", datapoints.Len())
+	}
+	attrs := datapoints.At(0).Attributes()
+	systemName, found := attrs.Get("db.system.name")
+	if !found {
+		t.Fatal("db.system.name attribute not found")
+	}
+	if systemName.Str() != "postgresql" {
+		t.Fatalf("db.system.name = %q, want %q", systemName.Str(), "postgresql")
+	}
+	namespace, found := attrs.Get("db.namespace")
+	if !found {
+		t.Fatal("db.namespace attribute not found")
+	}
+	if namespace.Str() != "demo" {
+		t.Fatalf("db.namespace = %q, want %q", namespace.Str(), "demo")
+	}
+}
+
+func TestScraper_GroupsMetricsByResourceAttributeKeys(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "pg_database_size_bytes",
+		Help: "Disk space used by the database",
+	}, []string{"datname"})
+	registry.MustRegister(gauge)
+	gauge.WithLabelValues("demo").Set(42)
+	gauge.WithLabelValues("postgres").Set(7)
+
+	transform, err := newMetricsTransform(componenttest.NewNopTelemetrySettings(), OTTLStatements{
+		MetricStatements: []string{
+			`set(metric.name, "postgresql.db_size") where metric.name == "pg_database_size_bytes"`,
+			`set(metric.unit, "By") where metric.name == "postgresql.db_size"`,
+		},
+		DataPointStatements: []string{
+			`set(datapoint.attributes["postgresql.database.name"], datapoint.attributes["datname"]) where datapoint.attributes["datname"] != nil`,
+			`set(datapoint.attributes["service.instance.id"], "localhost:5432")`,
+		},
+	}, []string{"service.instance.id", "postgresql.database.name"})
+	if err != nil {
+		t.Fatalf("newMetricsTransform() returned unexpected error: %v", err)
+	}
+
+	s := newScraper(registry, component.MustNewType("test"), zap.NewNop(), transform)
+	metrics, err := s.ScrapeMetrics(context.Background())
+	if err != nil {
+		t.Fatalf("ScrapeMetrics() returned unexpected error: %v", err)
+	}
+
+	if metrics.ResourceMetrics().Len() != 2 {
+		t.Fatalf("ResourceMetrics().Len() = %d, want 2", metrics.ResourceMetrics().Len())
+	}
+
+	wantDatabases := map[string]bool{"demo": false, "postgres": false}
+	for i := 0; i < metrics.ResourceMetrics().Len(); i++ {
+		rm := metrics.ResourceMetrics().At(i)
+		attrs := rm.Resource().Attributes()
+		instanceID, found := attrs.Get("service.instance.id")
+		if !found {
+			t.Fatalf("resource %d missing service.instance.id", i)
+		}
+		if instanceID.Str() != "localhost:5432" {
+			t.Fatalf("service.instance.id = %q, want localhost:5432", instanceID.Str())
+		}
+		databaseName, found := attrs.Get("postgresql.database.name")
+		if !found {
+			t.Fatalf("resource %d missing postgresql.database.name", i)
+		}
+		if _, ok := wantDatabases[databaseName.Str()]; !ok {
+			t.Fatalf("unexpected postgresql.database.name %q", databaseName.Str())
+		}
+		wantDatabases[databaseName.Str()] = true
+
+		metric := findMetricInResource(t, rm, "postgresql.db_size")
+		if metric.Unit() != "By" {
+			t.Fatalf("metric unit = %q, want By", metric.Unit())
+		}
+		dataPoints := metric.Gauge().DataPoints()
+		if dataPoints.Len() != 1 {
+			t.Fatalf("resource %d data points = %d, want 1", i, dataPoints.Len())
+		}
+		if _, found := dataPoints.At(0).Attributes().Get("postgresql.database.name"); found {
+			t.Fatalf("postgresql.database.name remained on datapoint")
+		}
+		if _, found := dataPoints.At(0).Attributes().Get("service.instance.id"); found {
+			t.Fatalf("service.instance.id remained on datapoint")
+		}
+	}
+
+	for database, found := range wantDatabases {
+		if !found {
+			t.Fatalf("database %q resource not found", database)
+		}
 	}
 }
 
@@ -88,7 +221,7 @@ func TestScraper_GaugeConversion(t *testing.T) {
 		gauge.WithLabelValues(label).Set(val)
 	}
 
-	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
+	s := newScraper(registry, component.MustNewType("test"), zap.NewNop(), nil)
 	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
 		t.Fatalf("Scrape() returned unexpected error: %v", err)
@@ -141,7 +274,7 @@ func TestScraper_CounterConversion(t *testing.T) {
 	counter.WithLabelValues("POST", "201").Add(25)
 	counter.WithLabelValues("GET", "404").Add(3)
 
-	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
+	s := newScraper(registry, component.MustNewType("test"), zap.NewNop(), nil)
 	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
 		t.Fatalf("Scrape() returned unexpected error: %v", err)
@@ -210,7 +343,7 @@ func TestScraper_HistogramConversion(t *testing.T) {
 	histogram.WithLabelValues("/api").Observe(0.42)
 	histogram.WithLabelValues("/health").Observe(0.001)
 
-	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
+	s := newScraper(registry, component.MustNewType("test"), zap.NewNop(), nil)
 	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
 		t.Fatalf("Scrape() returned unexpected error: %v", err)
@@ -281,7 +414,7 @@ func TestScraper_ExponentialHistogramConversion(t *testing.T) {
 	histogram.Observe(0.5)
 	histogram.Observe(2.5)
 
-	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
+	s := newScraper(registry, component.MustNewType("test"), zap.NewNop(), nil)
 	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
 		t.Fatalf("Scrape() returned unexpected error: %v", err)
@@ -330,7 +463,7 @@ func TestScraper_SummaryConversion(t *testing.T) {
 		summary.WithLabelValues("auth").Observe(float64(i) * 0.5)
 	}
 
-	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
+	s := newScraper(registry, component.MustNewType("test"), zap.NewNop(), nil)
 	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
 		t.Fatalf("Scrape() returned unexpected error: %v", err)
@@ -383,7 +516,7 @@ func TestScraper_ScopeMetadata(t *testing.T) {
 	registry.MustRegister(gauge)
 	gauge.Set(1)
 
-	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
+	s := newScraper(registry, component.MustNewType("test"), zap.NewNop(), nil)
 	metrics, err := s.ScrapeMetrics(context.Background())
 	if err != nil {
 		t.Fatalf("Scrape() returned unexpected error: %v", err)
@@ -408,18 +541,34 @@ func findMetric(t *testing.T, metrics pmetric.Metrics, name string) pmetric.Metr
 	t.Helper()
 	for i := 0; i < metrics.ResourceMetrics().Len(); i++ {
 		rm := metrics.ResourceMetrics().At(i)
-		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
-			sm := rm.ScopeMetrics().At(j)
-			for k := 0; k < sm.Metrics().Len(); k++ {
-				m := sm.Metrics().At(k)
-				if m.Name() == name {
-					return m
-				}
-			}
+		if metric, ok := findMetricInResourceMetrics(rm, name); ok {
+			return metric
 		}
 	}
 	t.Fatalf("metric %q not found", name)
 	return pmetric.Metric{}
+}
+
+func findMetricInResource(t *testing.T, rm pmetric.ResourceMetrics, name string) pmetric.Metric {
+	t.Helper()
+	metric, ok := findMetricInResourceMetrics(rm, name)
+	if !ok {
+		t.Fatalf("metric %q not found in resource", name)
+	}
+	return metric
+}
+
+func findMetricInResourceMetrics(rm pmetric.ResourceMetrics, name string) (pmetric.Metric, bool) {
+	for j := 0; j < rm.ScopeMetrics().Len(); j++ {
+		sm := rm.ScopeMetrics().At(j)
+		for k := 0; k < sm.Metrics().Len(); k++ {
+			m := sm.Metrics().At(k)
+			if m.Name() == name {
+				return m, true
+			}
+		}
+	}
+	return pmetric.Metric{}, false
 }
 
 func collectMetricNames(metrics pmetric.Metrics) map[string]pmetric.MetricType {

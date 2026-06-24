@@ -217,7 +217,7 @@ func BenchmarkScrapeAndExport(b *testing.B) {
 						b.Run(fmt.Sprintf("cardinality_%d", cardinality), func(b *testing.B) {
 							registry := setupRegistry(b, metricType, metricCount, cardinality)
 							consumer := consumertest.NewNop()
-							s := newScraper(registry, receiverType, zap.NewNop())
+							s := newScraper(registry, receiverType, zap.NewNop(), nil)
 
 							b.ReportAllocs()
 							b.ResetTimer()
