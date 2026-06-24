@@ -71,6 +71,8 @@ github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal 
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.154.0/go.mod h1:8z8HOBhVnR/uDmR3vkoQZg0dYfyKRGuOgQQgXuInAL8=
 github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.154.0 h1:AaeGGr8fJVLEj1Iz26KG5yLA7qyKUrcJkW2Uy1O2A9w=
 github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.154.0/go.mod h1:QQ3PP/qLuRI1lZ8jpqoF0Squah5b1QFwUUQlp+vXcTY=
+github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatautil v0.154.0 h1:Kda+8F8o5QATBLP5K2MKmI2t7ddr7sBaV0EhZpjlvB0=
+github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatautil v0.154.0/go.mod h1:iVnoGSVXYhnyuQ6TQNhBIHqtu7h0LTXbSyWy584eBjg=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/prometheus/client_golang v1.23.2 h1:Je96obch5RDVy3FDMndoUsjAhG5Edi49h0RJWRi/o0o=

@@ -76,7 +76,8 @@ func (s *scraper) ScrapeMetrics(ctx context.Context) (pmetric.Metrics, error) {
 	}
 
 	metrics := s.convert(scopeMetrics)
-	if err := s.transform.Apply(ctx, metrics); err != nil {
+	metrics, err = s.transform.Apply(ctx, metrics)
+	if err != nil {
 		return pmetric.Metrics{}, fmt.Errorf("failed to transform metrics: %w", err)
 	}
 

@@ -61,6 +61,7 @@ type factoryConfig struct {
 	defaultConfig         map[string]interface{}
 	decodeHooks           []mapstructure.DecodeHookFunc
 	ottlStatementProvider OTTLStatementProvider
+	resourceAttributeKeys []string
 }
 
 // WithComponentDefaults sets the component's default exporter configuration,
@@ -101,6 +102,15 @@ func WithOTTLStatements(statements OTTLStatements) FactoryOption {
 func WithOTTLStatementProvider(provider OTTLStatementProvider) FactoryOption {
 	return func(cfg *factoryConfig) {
 		cfg.ottlStatementProvider = provider
+	}
+}
+
+// WithResourceAttributeKeys configures datapoint attribute keys that should be
+// moved to resource attributes after OTTL transformations run. Metrics are
+// regrouped into ResourceMetrics by the resulting resource attribute set.
+func WithResourceAttributeKeys(keys []string) FactoryOption {
+	return func(cfg *factoryConfig) {
+		cfg.resourceAttributeKeys = append([]string(nil), keys...)
 	}
 }
 
@@ -226,7 +236,7 @@ func newFactory(
 		typeStr,
 		componentDefaultsFunc,
 		receiver.WithMetrics(
-			createMetricsReceiver(lifecycleManager, configDecoder, cfg.ottlStatementProvider),
+			createMetricsReceiver(lifecycleManager, configDecoder, cfg.ottlStatementProvider, cfg.resourceAttributeKeys),
 			component.StabilityLevelAlpha,
 		),
 	)
@@ -236,6 +246,7 @@ func createMetricsReceiver(
 	lifecycleManager ExporterLifecycleManager,
 	configDecoder ConfigDecoder,
 	ottlStatementProvider OTTLStatementProvider,
+	resourceAttributeKeys []string,
 ) receiver.CreateMetricsFunc {
 	return func(
 		_ context.Context,
@@ -274,6 +285,7 @@ func createMetricsReceiver(
 			set,
 			lifecycleManager,
 			ottlStatements,
+			resourceAttributeKeys,
 		), nil
 	}
 }

@@ -32,6 +32,7 @@ type prometheusReceiver struct {
 	settings         receiver.Settings
 	lifecycleManager ExporterLifecycleManager
 	ottlStatements   OTTLStatements
+	resourceAttrKeys []string
 	scraper          *scraper
 	controller       receiver.Metrics
 
@@ -45,6 +46,7 @@ func newPrometheusReceiver(
 	settings receiver.Settings,
 	lifecycleManager ExporterLifecycleManager,
 	ottlStatements OTTLStatements,
+	resourceAttributeKeys []string,
 ) *prometheusReceiver {
 	return &prometheusReceiver{
 		config:           config,
@@ -52,6 +54,7 @@ func newPrometheusReceiver(
 		settings:         settings,
 		lifecycleManager: lifecycleManager,
 		ottlStatements:   ottlStatements.clone(),
+		resourceAttrKeys: append([]string(nil), resourceAttributeKeys...),
 	}
 }
 
@@ -65,7 +68,7 @@ func (r *prometheusReceiver) Start(ctx context.Context, host component.Host) err
 	}
 	r.registry = registry
 
-	transform, err := newMetricsTransform(r.settings.TelemetrySettings, r.ottlStatements)
+	transform, err := newMetricsTransform(r.settings.TelemetrySettings, r.ottlStatements, r.resourceAttrKeys)
 	if err != nil {
 		return fmt.Errorf("failed to create OTTL transform: %w", err)
 	}

@@ -46,16 +46,18 @@ func (s OTTLStatements) empty() bool {
 type metricsTransform struct {
 	metricStatements       ottl.StatementSequence[*ottlmetric.TransformContext]
 	dataPointStatements    ottl.StatementSequence[*ottldatapoint.TransformContext]
+	resourceGrouper        *metricsResourceGrouper
 	hasMetricStatements    bool
 	hasDataPointStatements bool
 }
 
-func newMetricsTransform(settings component.TelemetrySettings, statements OTTLStatements) (*metricsTransform, error) {
-	if statements.empty() {
+func newMetricsTransform(settings component.TelemetrySettings, statements OTTLStatements, resourceAttributeKeys []string) (*metricsTransform, error) {
+	resourceGrouper := newMetricsResourceGrouper(resourceAttributeKeys)
+	if statements.empty() && resourceGrouper == nil {
 		return nil, nil
 	}
 
-	transform := &metricsTransform{}
+	transform := &metricsTransform{resourceGrouper: resourceGrouper}
 	if len(statements.MetricStatements) > 0 {
 		parser, err := ottlmetric.NewParser(
 			ottlfuncs.StandardFuncs[*ottlmetric.TransformContext](),
@@ -93,9 +95,9 @@ func newMetricsTransform(settings component.TelemetrySettings, statements OTTLSt
 	return transform, nil
 }
 
-func (t *metricsTransform) Apply(ctx context.Context, metrics pmetric.Metrics) error {
+func (t *metricsTransform) Apply(ctx context.Context, metrics pmetric.Metrics) (pmetric.Metrics, error) {
 	if t == nil {
-		return nil
+		return metrics, nil
 	}
 
 	for i := 0; i < metrics.ResourceMetrics().Len(); i++ {
@@ -104,16 +106,16 @@ func (t *metricsTransform) Apply(ctx context.Context, metrics pmetric.Metrics) e
 			sm := rm.ScopeMetrics().At(j)
 			for k := 0; k < sm.Metrics().Len(); k++ {
 				metric := sm.Metrics().At(k)
-				if err := t.applyMetric(ctx, rm, sm, metric); err != nil {
-					return err
-				}
 				if err := t.applyDataPoints(ctx, rm, sm, metric); err != nil {
-					return err
+					return pmetric.Metrics{}, err
+				}
+				if err := t.applyMetric(ctx, rm, sm, metric); err != nil {
+					return pmetric.Metrics{}, err
 				}
 			}
 		}
 	}
-	return nil
+	return t.resourceGrouper.Apply(metrics), nil
 }
 
 func (t *metricsTransform) applyMetric(ctx context.Context, rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric) error {
