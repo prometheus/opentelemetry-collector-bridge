@@ -16,6 +16,7 @@ package prometheuscollectorbridge
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
@@ -54,8 +55,9 @@ type ConfigDecoder interface {
 type FactoryOption func(*factoryConfig)
 
 type factoryConfig struct {
-	defaultConfig map[string]interface{}
-	decodeHooks   []mapstructure.DecodeHookFunc
+	defaultConfig         map[string]interface{}
+	decodeHooks           []mapstructure.DecodeHookFunc
+	defaultScrapeInterval time.Duration
 }
 
 // WithComponentDefaults sets the component's default exporter configuration,
@@ -66,6 +68,15 @@ type factoryConfig struct {
 func WithComponentDefaults(defaults map[string]interface{}) FactoryOption {
 	return func(cfg *factoryConfig) {
 		cfg.defaultConfig = defaults
+	}
+}
+
+// WithDefaultScrapeInterval overrides the bridge's built-in 30s default scrape
+// interval for this component; a user-supplied scrape_interval still wins. Useful
+// for sources whose finest resolution is coarser, e.g. cloud-provider metrics.
+func WithDefaultScrapeInterval(d time.Duration) FactoryOption {
+	return func(cfg *factoryConfig) {
+		cfg.defaultScrapeInterval = d
 	}
 }
 
@@ -195,6 +206,9 @@ func newFactory(
 	componentDefaultsFunc := func() component.Config {
 		receiverConfig := createDefaultConfig()
 		receiverConfig.ExporterConfig = cfg.defaultConfig
+		if cfg.defaultScrapeInterval > 0 {
+			receiverConfig.ScrapeInterval = cfg.defaultScrapeInterval
+		}
 		return &receiverConfig
 	}
 
