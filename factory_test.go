@@ -295,6 +295,23 @@ func TestNewFactory_DefaultConfig(t *testing.T) {
 	}
 }
 
+func TestWithDefaultScrapeInterval(t *testing.T) {
+	factory := NewFactory(
+		component.MustNewType("test"),
+		&mockLifecycleManager{},
+		&mockConfigUnmarshaler{getConfigStructFunc: func() any { return &testExporterConfig{} }},
+		WithDefaultScrapeInterval(time.Minute),
+	)
+
+	receiverCfg, ok := factory.CreateDefaultConfig().(*ReceiverConfig)
+	if !ok {
+		t.Fatalf("CreateDefaultConfig() returned wrong type")
+	}
+	if receiverCfg.ScrapeInterval != time.Minute {
+		t.Errorf("ScrapeInterval = %v, want %v", receiverCfg.ScrapeInterval, time.Minute)
+	}
+}
+
 func TestCreateMetricsReceiver_EmptyExporterConfigDecodesDefaultConfig(t *testing.T) {
 	tests := []struct {
 		name           string
