@@ -168,6 +168,15 @@
 //	    }),
 //	)
 //
+// The bridge's default scrape_interval is 30s. Users can override it in their
+// receiver YAML; component authors can change the rendered default for a
+// receiver with WithDefaultScrapeInterval:
+//
+//	factory := prometheuscollectorbridge.NewFactory(
+//	    typ, lifecycle, unmarshaler,
+//	    prometheuscollectorbridge.WithDefaultScrapeInterval(time.Minute),
+//	)
+//
 // # Configuration
 //
 // The receiver supports common configuration options:
