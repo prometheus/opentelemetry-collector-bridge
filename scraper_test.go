@@ -404,8 +404,154 @@ func TestScraper_ScopeMetadata(t *testing.T) {
 	}
 }
 
+func TestScraper_EmitsStalenessMarkerForDisappearingGauge(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "temperature_celsius",
+		Help: "Current temperature in celsius",
+	}, []string{"location"})
+	registry.MustRegister(gauge)
+
+	gauge.WithLabelValues("kitchen").Set(22.5)
+	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
+
+	first, err := s.ScrapeMetrics(context.Background())
+	if err != nil {
+		t.Fatalf("first scrape returned unexpected error: %v", err)
+	}
+	firstMetric := findMetric(t, first, "temperature_celsius")
+	if got := firstMetric.Gauge().DataPoints().Len(); got != 1 {
+		t.Fatalf("first scrape data points = %d, want 1", got)
+	}
+	if firstMetric.Gauge().DataPoints().At(0).Flags().NoRecordedValue() {
+		t.Fatal("first scrape unexpectedly emitted a stale marker")
+	}
+
+	if !gauge.DeleteLabelValues("kitchen") {
+		t.Fatal("failed to delete gauge label values")
+	}
+
+	second, err := s.ScrapeMetrics(context.Background())
+	if err != nil {
+		t.Fatalf("second scrape returned unexpected error: %v", err)
+	}
+	secondMetric := findMetric(t, second, "temperature_celsius")
+	if got := secondMetric.Gauge().DataPoints().Len(); got != 1 {
+		t.Fatalf("second scrape data points = %d, want 1 stale marker", got)
+	}
+	stalePoint := secondMetric.Gauge().DataPoints().At(0)
+	if !stalePoint.Flags().NoRecordedValue() {
+		t.Fatal("second scrape did not emit NoRecordedValue stale marker")
+	}
+	location, found := stalePoint.Attributes().Get("location")
+	if !found || location.Str() != "kitchen" {
+		t.Fatalf("stale marker location = %q, found=%v, want kitchen", location.Str(), found)
+	}
+	if stalePoint.Timestamp() == 0 {
+		t.Fatal("stale marker has zero timestamp")
+	}
+}
+
+func TestScraper_EmitsStalenessMarkerOnceAndHandlesReappearance(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "connections_active",
+		Help: "Active connections",
+	}, []string{"state"})
+	registry.MustRegister(gauge)
+
+	gauge.WithLabelValues("open").Set(10)
+	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
+
+	if _, err := s.ScrapeMetrics(context.Background()); err != nil {
+		t.Fatalf("first scrape returned unexpected error: %v", err)
+	}
+	if !gauge.DeleteLabelValues("open") {
+		t.Fatal("failed to delete gauge label values")
+	}
+
+	second, err := s.ScrapeMetrics(context.Background())
+	if err != nil {
+		t.Fatalf("second scrape returned unexpected error: %v", err)
+	}
+	secondMetric := findMetric(t, second, "connections_active")
+	if !secondMetric.Gauge().DataPoints().At(0).Flags().NoRecordedValue() {
+		t.Fatal("second scrape did not emit stale marker")
+	}
+
+	third, err := s.ScrapeMetrics(context.Background())
+	if err != nil {
+		t.Fatalf("third scrape returned unexpected error: %v", err)
+	}
+	if _, found := maybeFindMetric(third, "connections_active"); found {
+		t.Fatal("stale marker was emitted more than once for missing series")
+	}
+
+	gauge.WithLabelValues("open").Set(7)
+	fourth, err := s.ScrapeMetrics(context.Background())
+	if err != nil {
+		t.Fatalf("fourth scrape returned unexpected error: %v", err)
+	}
+	fourthMetric := findMetric(t, fourth, "connections_active")
+	dp := fourthMetric.Gauge().DataPoints().At(0)
+	if dp.Flags().NoRecordedValue() {
+		t.Fatal("reappearing series was emitted as stale")
+	}
+	if dp.DoubleValue() != 7 {
+		t.Fatalf("reappearing series value = %v, want 7", dp.DoubleValue())
+	}
+}
+
+func TestScraper_EmitsStalenessMarkerForDisappearingHistogram(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	histogram := prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "request_duration_seconds",
+		Help:    "Request duration in seconds",
+		Buckets: []float64{0.1, 1},
+	}, []string{"handler"})
+	registry.MustRegister(histogram)
+
+	histogram.WithLabelValues("/api").Observe(0.5)
+	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
+
+	if _, err := s.ScrapeMetrics(context.Background()); err != nil {
+		t.Fatalf("first scrape returned unexpected error: %v", err)
+	}
+	if !histogram.DeleteLabelValues("/api") {
+		t.Fatal("failed to delete histogram label values")
+	}
+
+	second, err := s.ScrapeMetrics(context.Background())
+	if err != nil {
+		t.Fatalf("second scrape returned unexpected error: %v", err)
+	}
+	metric := findMetric(t, second, "request_duration_seconds")
+	if metric.Type() != pmetric.MetricTypeHistogram {
+		t.Fatalf("metric type = %v, want Histogram", metric.Type())
+	}
+	if got := metric.Histogram().DataPoints().Len(); got != 1 {
+		t.Fatalf("histogram stale data points = %d, want 1", got)
+	}
+	dp := metric.Histogram().DataPoints().At(0)
+	if !dp.Flags().NoRecordedValue() {
+		t.Fatal("histogram stale marker did not set NoRecordedValue")
+	}
+	handler, found := dp.Attributes().Get("handler")
+	if !found || handler.Str() != "/api" {
+		t.Fatalf("stale marker handler = %q, found=%v, want /api", handler.Str(), found)
+	}
+}
+
 func findMetric(t *testing.T, metrics pmetric.Metrics, name string) pmetric.Metric {
 	t.Helper()
+	if metric, found := maybeFindMetric(metrics, name); found {
+		return metric
+	}
+	t.Fatalf("metric %q not found", name)
+	return pmetric.Metric{}
+}
+
+func maybeFindMetric(metrics pmetric.Metrics, name string) (pmetric.Metric, bool) {
 	for i := 0; i < metrics.ResourceMetrics().Len(); i++ {
 		rm := metrics.ResourceMetrics().At(i)
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
@@ -413,13 +559,12 @@ func findMetric(t *testing.T, metrics pmetric.Metrics, name string) pmetric.Metr
 			for k := 0; k < sm.Metrics().Len(); k++ {
 				m := sm.Metrics().At(k)
 				if m.Name() == name {
-					return m
+					return m, true
 				}
 			}
 		}
 	}
-	t.Fatalf("metric %q not found", name)
-	return pmetric.Metric{}
+	return pmetric.Metric{}, false
 }
 
 func collectMetricNames(metrics pmetric.Metrics) map[string]pmetric.MetricType {
