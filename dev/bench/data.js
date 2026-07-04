@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782753965744,
+  "lastUpdate": 1783167898053,
   "repoUrl": "https://github.com/prometheus/opentelemetry-collector-bridge",
   "entries": {
     "OpenTelemetry Collector Bridge Benchmarks": [
@@ -3744,6 +3744,102 @@ window.BENCHMARK_DATA = {
             "value": 22061,
             "unit": "allocs/op",
             "extra": "6618 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "prometheus-team@googlegroups.com",
+            "name": "PrometheusBot",
+            "username": "prombot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d82608583e3d0bfdecc8f52a1d03e604958883a4",
+          "message": "Update common Prometheus files (#80)\n\nSigned-off-by: prombot <prometheus-team@googlegroups.com>",
+          "timestamp": "2026-07-04T14:23:59+02:00",
+          "tree_id": "4105e6366be1204e1ed246245ef87c114cb66229",
+          "url": "https://github.com/prometheus/opentelemetry-collector-bridge/commit/d82608583e3d0bfdecc8f52a1d03e604958883a4"
+        },
+        "date": 1783167897165,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10",
+            "value": 1285450,
+            "unit": "ns/op\t  845416 B/op\t   12062 allocs/op",
+            "extra": "9260 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - ns/op",
+            "value": 1285450,
+            "unit": "ns/op",
+            "extra": "9260 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - B/op",
+            "value": 845416,
+            "unit": "B/op",
+            "extra": "9260 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - allocs/op",
+            "value": 12062,
+            "unit": "allocs/op",
+            "extra": "9260 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10",
+            "value": 2760710,
+            "unit": "ns/op\t 2453418 B/op\t   42362 allocs/op",
+            "extra": "4290 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - ns/op",
+            "value": 2760710,
+            "unit": "ns/op",
+            "extra": "4290 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - B/op",
+            "value": 2453418,
+            "unit": "B/op",
+            "extra": "4290 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - allocs/op",
+            "value": 42362,
+            "unit": "allocs/op",
+            "extra": "4290 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10",
+            "value": 1867605,
+            "unit": "ns/op\t 1370255 B/op\t   22061 allocs/op",
+            "extra": "6417 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - ns/op",
+            "value": 1867605,
+            "unit": "ns/op",
+            "extra": "6417 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - B/op",
+            "value": 1370255,
+            "unit": "B/op",
+            "extra": "6417 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - allocs/op",
+            "value": 22061,
+            "unit": "allocs/op",
+            "extra": "6417 times\n4 procs"
           }
         ]
       }
