@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787764704750,
+  "lastUpdate": 1788094802236,
   "repoUrl": "https://github.com/prometheus/opentelemetry-collector-bridge",
   "entries": {
     "OpenTelemetry Collector Bridge Benchmarks": [
@@ -4704,6 +4704,102 @@ window.BENCHMARK_DATA = {
             "value": 22062,
             "unit": "allocs/op",
             "extra": "6403 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arthursens2005@gmail.com",
+            "name": "Arthur Silva Sens",
+            "username": "ArthurSens"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8c3a883c6345e5c235a848770f08d44a91144053",
+          "message": "Merge pull request #19 from prometheus/deps-update/go-1.x\n\nUpdate dependency go to 1.27.x",
+          "timestamp": "2026-08-30T09:58:43-03:00",
+          "tree_id": "021fb2f557cce4fa12ea4a2cec34472b8f0a1394",
+          "url": "https://github.com/prometheus/opentelemetry-collector-bridge/commit/8c3a883c6345e5c235a848770f08d44a91144053"
+        },
+        "date": 1788094801671,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10",
+            "value": 1184544,
+            "unit": "ns/op\t  845461 B/op\t   12063 allocs/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - ns/op",
+            "value": 1184544,
+            "unit": "ns/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - B/op",
+            "value": 845461,
+            "unit": "B/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - allocs/op",
+            "value": 12063,
+            "unit": "allocs/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10",
+            "value": 2514620,
+            "unit": "ns/op\t 2453454 B/op\t   42363 allocs/op",
+            "extra": "4849 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - ns/op",
+            "value": 2514620,
+            "unit": "ns/op",
+            "extra": "4849 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - B/op",
+            "value": 2453454,
+            "unit": "B/op",
+            "extra": "4849 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - allocs/op",
+            "value": 42363,
+            "unit": "allocs/op",
+            "extra": "4849 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10",
+            "value": 1790869,
+            "unit": "ns/op\t 1370303 B/op\t   22062 allocs/op",
+            "extra": "6762 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - ns/op",
+            "value": 1790869,
+            "unit": "ns/op",
+            "extra": "6762 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - B/op",
+            "value": 1370303,
+            "unit": "B/op",
+            "extra": "6762 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - allocs/op",
+            "value": 22062,
+            "unit": "allocs/op",
+            "extra": "6762 times\n4 procs"
           }
         ]
       }
