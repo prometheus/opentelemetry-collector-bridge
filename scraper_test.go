@@ -542,6 +542,37 @@ func TestScraper_EmitsStalenessMarkerForDisappearingHistogram(t *testing.T) {
 	}
 }
 
+func TestScraper_StalenessCacheSharesMetricMetadataAcrossSeries(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "temperature_celsius",
+		Help: "Current temperature in celsius",
+	}, []string{"location"})
+	registry.MustRegister(gauge)
+	gauge.WithLabelValues("kitchen").Set(22.5)
+	gauge.WithLabelValues("bedroom").Set(19)
+
+	s := newScraper(registry, component.MustNewType("test"), zap.NewNop())
+	if _, err := s.ScrapeMetrics(context.Background()); err != nil {
+		t.Fatalf("scrape returned unexpected error: %v", err)
+	}
+
+	if got := len(s.seriesCache); got != 2 {
+		t.Fatalf("cached series = %d, want 2", got)
+	}
+
+	var wantMetric *metricCacheEntry
+	for _, series := range s.seriesCache {
+		if wantMetric == nil {
+			wantMetric = series.metric
+			continue
+		}
+		if series.metric != wantMetric {
+			t.Fatal("series from the same metric do not share cached metric metadata")
+		}
+	}
+}
+
 func findMetric(t *testing.T, metrics pmetric.Metrics, name string) pmetric.Metric {
 	t.Helper()
 	if metric, found := maybeFindMetric(metrics, name); found {

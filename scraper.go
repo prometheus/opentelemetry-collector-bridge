@@ -408,11 +408,19 @@ func (s *scraper) convertAttributes(attrs attribute.Set, dest pcommon.Map) {
 // descriptor, and data point attributes.
 type streamIdentity string
 
-type seriesCacheEntry struct {
+type resourceCacheEntry struct {
 	resourceSchemaURL string
 	resource          pcommon.Resource
-	scopeSchemaURL    string
-	scope             pcommon.InstrumentationScope
+}
+
+type scopeCacheEntry struct {
+	resource       *resourceCacheEntry
+	scopeSchemaURL string
+	scope          pcommon.InstrumentationScope
+}
+
+type metricCacheEntry struct {
+	scope             *scopeCacheEntry
 	metricName        string
 	metricDescription string
 	metricUnit        string
@@ -420,8 +428,12 @@ type seriesCacheEntry struct {
 	temporality       pmetric.AggregationTemporality
 	isMonotonic       bool
 	metadata          pcommon.Map
-	attributes        pcommon.Map
-	startTimestamp    pcommon.Timestamp
+}
+
+type seriesCacheEntry struct {
+	metric         *metricCacheEntry
+	attributes     pcommon.Map
+	startTimestamp pcommon.Timestamp
 }
 
 func (s *scraper) trackStaleness(metrics pmetric.Metrics, scrapeTimestamp pcommon.Timestamp) {
@@ -445,47 +457,50 @@ func (s *scraper) collectCurrentSeries(metrics pmetric.Metrics) map[streamIdenti
 	for i := 0; i < metrics.ResourceMetrics().Len(); i++ {
 		rm := metrics.ResourceMetrics().At(i)
 		resourceID := resourceIdentity(rm)
+		resource := newResourceCacheEntry(rm)
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
 			sm := rm.ScopeMetrics().At(j)
 			scopeID := scopeIdentity(resourceID, sm)
+			scope := newScopeCacheEntry(resource, sm)
 			for k := 0; k < sm.Metrics().Len(); k++ {
 				m := sm.Metrics().At(k)
 				metricID := metricIdentity(scopeID, m)
+				metric := newMetricCacheEntry(scope, m)
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
 					dps := m.Gauge().DataPoints()
 					for l := 0; l < dps.Len(); l++ {
 						dp := dps.At(l)
 						id := streamKey(metricID, dp.Attributes())
-						current[id] = newSeriesCacheEntry(rm, sm, m, dp.Attributes(), dp.StartTimestamp())
+						current[id] = newSeriesCacheEntry(metric, dp.Attributes(), dp.StartTimestamp())
 					}
 				case pmetric.MetricTypeSum:
 					dps := m.Sum().DataPoints()
 					for l := 0; l < dps.Len(); l++ {
 						dp := dps.At(l)
 						id := streamKey(metricID, dp.Attributes())
-						current[id] = newSeriesCacheEntry(rm, sm, m, dp.Attributes(), dp.StartTimestamp())
+						current[id] = newSeriesCacheEntry(metric, dp.Attributes(), dp.StartTimestamp())
 					}
 				case pmetric.MetricTypeHistogram:
 					dps := m.Histogram().DataPoints()
 					for l := 0; l < dps.Len(); l++ {
 						dp := dps.At(l)
 						id := streamKey(metricID, dp.Attributes())
-						current[id] = newSeriesCacheEntry(rm, sm, m, dp.Attributes(), dp.StartTimestamp())
+						current[id] = newSeriesCacheEntry(metric, dp.Attributes(), dp.StartTimestamp())
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					dps := m.ExponentialHistogram().DataPoints()
 					for l := 0; l < dps.Len(); l++ {
 						dp := dps.At(l)
 						id := streamKey(metricID, dp.Attributes())
-						current[id] = newSeriesCacheEntry(rm, sm, m, dp.Attributes(), dp.StartTimestamp())
+						current[id] = newSeriesCacheEntry(metric, dp.Attributes(), dp.StartTimestamp())
 					}
 				case pmetric.MetricTypeSummary:
 					dps := m.Summary().DataPoints()
 					for l := 0; l < dps.Len(); l++ {
 						dp := dps.At(l)
 						id := streamKey(metricID, dp.Attributes())
-						current[id] = newSeriesCacheEntry(rm, sm, m, dp.Attributes(), dp.StartTimestamp())
+						current[id] = newSeriesCacheEntry(metric, dp.Attributes(), dp.StartTimestamp())
 					}
 				}
 			}
@@ -494,37 +509,38 @@ func (s *scraper) collectCurrentSeries(metrics pmetric.Metrics) map[streamIdenti
 	return current
 }
 
-func newSeriesCacheEntry(
-	rm pmetric.ResourceMetrics,
-	sm pmetric.ScopeMetrics,
-	m pmetric.Metric,
-	attrs pcommon.Map,
-	startTimestamp pcommon.Timestamp,
-) seriesCacheEntry {
+func newResourceCacheEntry(rm pmetric.ResourceMetrics) *resourceCacheEntry {
 	resource := pcommon.NewResource()
 	rm.Resource().CopyTo(resource)
 
+	return &resourceCacheEntry{
+		resourceSchemaURL: rm.SchemaUrl(),
+		resource:          resource,
+	}
+}
+
+func newScopeCacheEntry(resource *resourceCacheEntry, sm pmetric.ScopeMetrics) *scopeCacheEntry {
 	scope := pcommon.NewInstrumentationScope()
 	sm.Scope().CopyTo(scope)
 
+	return &scopeCacheEntry{
+		resource:       resource,
+		scopeSchemaURL: sm.SchemaUrl(),
+		scope:          scope,
+	}
+}
+
+func newMetricCacheEntry(scope *scopeCacheEntry, m pmetric.Metric) *metricCacheEntry {
 	metadata := pcommon.NewMap()
 	m.Metadata().CopyTo(metadata)
 
-	copiedAttrs := pcommon.NewMap()
-	attrs.CopyTo(copiedAttrs)
-
-	entry := seriesCacheEntry{
-		resourceSchemaURL: rm.SchemaUrl(),
-		resource:          resource,
-		scopeSchemaURL:    sm.SchemaUrl(),
+	entry := &metricCacheEntry{
 		scope:             scope,
 		metricName:        m.Name(),
 		metricDescription: m.Description(),
 		metricUnit:        m.Unit(),
 		metricType:        m.Type(),
 		metadata:          metadata,
-		attributes:        copiedAttrs,
-		startTimestamp:    startTimestamp,
 	}
 
 	switch m.Type() {
@@ -543,10 +559,25 @@ func newSeriesCacheEntry(
 	return entry
 }
 
+func newSeriesCacheEntry(
+	metric *metricCacheEntry,
+	attrs pcommon.Map,
+	startTimestamp pcommon.Timestamp,
+) seriesCacheEntry {
+	copiedAttrs := pcommon.NewMap()
+	attrs.CopyTo(copiedAttrs)
+
+	return seriesCacheEntry{
+		metric:         metric,
+		attributes:     copiedAttrs,
+		startTimestamp: startTimestamp,
+	}
+}
+
 func (s *scraper) appendStalePoint(metrics pmetric.Metrics, entry seriesCacheEntry, timestamp pcommon.Timestamp) {
 	metric := findOrCreateMetric(metrics, entry)
 
-	switch entry.metricType {
+	switch entry.metric.metricType {
 	case pmetric.MetricTypeGauge:
 		dp := metric.Gauge().DataPoints().AppendEmpty()
 		setStaleNumberDataPoint(dp, entry, timestamp)
@@ -566,35 +597,36 @@ func (s *scraper) appendStalePoint(metrics pmetric.Metrics, entry seriesCacheEnt
 }
 
 func findOrCreateMetric(metrics pmetric.Metrics, entry seriesCacheEntry) pmetric.Metric {
-	rm := findOrCreateResourceMetrics(metrics, entry)
-	sm := findOrCreateScopeMetrics(rm, entry)
+	metricEntry := entry.metric
+	rm := findOrCreateResourceMetrics(metrics, metricEntry.scope.resource)
+	sm := findOrCreateScopeMetrics(rm, metricEntry.scope)
 
 	for i := 0; i < sm.Metrics().Len(); i++ {
 		metric := sm.Metrics().At(i)
-		if metricMatchesEntry(metric, entry) {
+		if metricMatchesEntry(metric, metricEntry) {
 			return metric
 		}
 	}
 
 	metric := sm.Metrics().AppendEmpty()
-	metric.SetName(entry.metricName)
-	metric.SetDescription(entry.metricDescription)
-	metric.SetUnit(entry.metricUnit)
-	entry.metadata.CopyTo(metric.Metadata())
+	metric.SetName(metricEntry.metricName)
+	metric.SetDescription(metricEntry.metricDescription)
+	metric.SetUnit(metricEntry.metricUnit)
+	metricEntry.metadata.CopyTo(metric.Metadata())
 
-	switch entry.metricType {
+	switch metricEntry.metricType {
 	case pmetric.MetricTypeGauge:
 		metric.SetEmptyGauge()
 	case pmetric.MetricTypeSum:
 		sum := metric.SetEmptySum()
-		sum.SetAggregationTemporality(entry.temporality)
-		sum.SetIsMonotonic(entry.isMonotonic)
+		sum.SetAggregationTemporality(metricEntry.temporality)
+		sum.SetIsMonotonic(metricEntry.isMonotonic)
 	case pmetric.MetricTypeHistogram:
 		hist := metric.SetEmptyHistogram()
-		hist.SetAggregationTemporality(entry.temporality)
+		hist.SetAggregationTemporality(metricEntry.temporality)
 	case pmetric.MetricTypeExponentialHistogram:
 		hist := metric.SetEmptyExponentialHistogram()
-		hist.SetAggregationTemporality(entry.temporality)
+		hist.SetAggregationTemporality(metricEntry.temporality)
 	case pmetric.MetricTypeSummary:
 		metric.SetEmptySummary()
 	}
@@ -602,7 +634,7 @@ func findOrCreateMetric(metrics pmetric.Metrics, entry seriesCacheEntry) pmetric
 	return metric
 }
 
-func findOrCreateResourceMetrics(metrics pmetric.Metrics, entry seriesCacheEntry) pmetric.ResourceMetrics {
+func findOrCreateResourceMetrics(metrics pmetric.Metrics, entry *resourceCacheEntry) pmetric.ResourceMetrics {
 	for i := 0; i < metrics.ResourceMetrics().Len(); i++ {
 		rm := metrics.ResourceMetrics().At(i)
 		if rm.SchemaUrl() == entry.resourceSchemaURL &&
@@ -617,7 +649,7 @@ func findOrCreateResourceMetrics(metrics pmetric.Metrics, entry seriesCacheEntry
 	return rm
 }
 
-func findOrCreateScopeMetrics(rm pmetric.ResourceMetrics, entry seriesCacheEntry) pmetric.ScopeMetrics {
+func findOrCreateScopeMetrics(rm pmetric.ResourceMetrics, entry *scopeCacheEntry) pmetric.ScopeMetrics {
 	for i := 0; i < rm.ScopeMetrics().Len(); i++ {
 		sm := rm.ScopeMetrics().At(i)
 		if sm.SchemaUrl() == entry.scopeSchemaURL &&
@@ -634,7 +666,7 @@ func findOrCreateScopeMetrics(rm pmetric.ResourceMetrics, entry seriesCacheEntry
 	return sm
 }
 
-func metricMatchesEntry(metric pmetric.Metric, entry seriesCacheEntry) bool {
+func metricMatchesEntry(metric pmetric.Metric, entry *metricCacheEntry) bool {
 	if metric.Name() != entry.metricName ||
 		metric.Unit() != entry.metricUnit ||
 		metric.Type() != entry.metricType {
@@ -657,7 +689,7 @@ func metricMatchesEntry(metric pmetric.Metric, entry seriesCacheEntry) bool {
 
 func setStaleNumberDataPoint(dp pmetric.NumberDataPoint, entry seriesCacheEntry, timestamp pcommon.Timestamp) {
 	dp.SetTimestamp(timestamp)
-	if entry.metricType == pmetric.MetricTypeSum && entry.startTimestamp != 0 {
+	if entry.metric.metricType == pmetric.MetricTypeSum && entry.startTimestamp != 0 {
 		dp.SetStartTimestamp(entry.startTimestamp)
 	}
 	dp.SetFlags(pmetric.DefaultDataPointFlags.WithNoRecordedValue(true))
