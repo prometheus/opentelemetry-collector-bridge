@@ -404,6 +404,8 @@ func (s *scraper) convertAttributes(attrs attribute.Set, dest pcommon.Map) {
 	}
 }
 
+// streamIdentity identifies a metric stream by its resource, scope, metric
+// descriptor, and data point attributes.
 type streamIdentity string
 
 type seriesCacheEntry struct {
@@ -426,8 +428,7 @@ func (s *scraper) trackStaleness(metrics pmetric.Metrics, scrapeTimestamp pcommo
 	s.stalenessMu.Lock()
 	defer s.stalenessMu.Unlock()
 
-	current := make(map[streamIdentity]seriesCacheEntry)
-	s.collectCurrentSeries(metrics, current)
+	current := s.collectCurrentSeries(metrics)
 
 	for id, cached := range s.seriesCache {
 		if _, found := current[id]; found {
@@ -439,7 +440,8 @@ func (s *scraper) trackStaleness(metrics pmetric.Metrics, scrapeTimestamp pcommo
 	s.seriesCache = current
 }
 
-func (s *scraper) collectCurrentSeries(metrics pmetric.Metrics, current map[streamIdentity]seriesCacheEntry) {
+func (s *scraper) collectCurrentSeries(metrics pmetric.Metrics) map[streamIdentity]seriesCacheEntry {
+	current := make(map[streamIdentity]seriesCacheEntry)
 	for i := 0; i < metrics.ResourceMetrics().Len(); i++ {
 		rm := metrics.ResourceMetrics().At(i)
 		resourceID := resourceIdentity(rm)
@@ -489,6 +491,7 @@ func (s *scraper) collectCurrentSeries(metrics pmetric.Metrics, current map[stre
 			}
 		}
 	}
+	return current
 }
 
 func newSeriesCacheEntry(
