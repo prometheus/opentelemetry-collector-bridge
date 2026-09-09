@@ -194,6 +194,21 @@
 // the exporter_config block and surface type mismatches via mapstructure.
 // NewFactoryWithDecoder defers to your decoder.
 //
+// # Staleness Tracking
+//
+// Prometheus normally tracks staleness in its scrape manager: when a target or
+// a previously seen series disappears, Prometheus appends a stale marker so
+// queries stop returning the last observed value. This bridge gathers from an
+// in-process prometheus.Registry and pushes metrics into an OTel Collector
+// pipeline, so there is no Prometheus scrape manager at the end of the path.
+//
+// To preserve that behavior, the bridge always tracks translated OTLP streams
+// across gathers. If a stream was present in the previous gather and is missing
+// from the next successful gather, the bridge emits one datapoint with the OTLP
+// NoRecordedValue flag set. OTLP backends are expected to honor that flag. The
+// Collector's prometheusremotewrite exporter converts it to Prometheus'
+// StaleNaN marker for remote-write pipelines.
+//
 // # Validation
 //
 // Custom validation is opt-in. Implement a `Validate() error` method on your
@@ -243,6 +258,7 @@
 //	│  scraper                            │
 //	│  - Gather from registry             │
 //	│  - Convert to OTel format           │
+//	│  - Track stream staleness           │
 //	└──────────────┬──────────────────────┘
 //	               │
 //	┌──────────────▼──────────────────────┐
