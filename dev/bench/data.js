@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788877263322,
+  "lastUpdate": 1788976138447,
   "repoUrl": "https://github.com/prometheus/opentelemetry-collector-bridge",
   "entries": {
     "OpenTelemetry Collector Bridge Benchmarks": [
@@ -5184,6 +5184,102 @@ window.BENCHMARK_DATA = {
             "value": 22062,
             "unit": "allocs/op",
             "extra": "6243 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arthursens2005@gmail.com",
+            "name": "Arthur Silva Sens",
+            "username": "ArthurSens"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4edf6e9c6c08e4666af3e0cf2550837205839700",
+          "message": "Merge pull request #79 from prometheus/staleness-tracking\n\nIntroduce staleness tracking",
+          "timestamp": "2026-09-09T14:47:55-03:00",
+          "tree_id": "b3f3bdbf0222e39d61d4ef9346a3d8ef2a20e5df",
+          "url": "https://github.com/prometheus/opentelemetry-collector-bridge/commit/4edf6e9c6c08e4666af3e0cf2550837205839700"
+        },
+        "date": 1788976137663,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10",
+            "value": 2532651,
+            "unit": "ns/op\t 1968201 B/op\t   21798 allocs/op",
+            "extra": "4803 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - ns/op",
+            "value": 2532651,
+            "unit": "ns/op",
+            "extra": "4803 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - B/op",
+            "value": 1968201,
+            "unit": "B/op",
+            "extra": "4803 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - allocs/op",
+            "value": 21798,
+            "unit": "allocs/op",
+            "extra": "4803 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10",
+            "value": 3795313,
+            "unit": "ns/op\t 3593806 B/op\t   52098 allocs/op",
+            "extra": "3182 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - ns/op",
+            "value": 3795313,
+            "unit": "ns/op",
+            "extra": "3182 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - B/op",
+            "value": 3593806,
+            "unit": "B/op",
+            "extra": "3182 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - allocs/op",
+            "value": 52098,
+            "unit": "allocs/op",
+            "extra": "3182 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10",
+            "value": 3046649,
+            "unit": "ns/op\t 2489926 B/op\t   31764 allocs/op",
+            "extra": "3943 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - ns/op",
+            "value": 3046649,
+            "unit": "ns/op",
+            "extra": "3943 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - B/op",
+            "value": 2489926,
+            "unit": "B/op",
+            "extra": "3943 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - allocs/op",
+            "value": 31764,
+            "unit": "allocs/op",
+            "extra": "3943 times\n4 procs"
           }
         ]
       }
