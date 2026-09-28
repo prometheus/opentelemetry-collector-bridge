@@ -462,6 +462,18 @@ type seriesCacheEntry struct {
 	metric         *metricCacheEntry
 	attributes     pcommon.Map
 	startTimestamp pcommon.Timestamp
+	histogramShape *histogramShape
+	summaryShape   *summaryShape
+}
+
+type histogramShape struct {
+	explicitBounds []float64
+	bucketCount    int
+	hasSum         bool
+}
+
+type summaryShape struct {
+	quantiles []float64
 }
 
 func (s *scraper) trackStaleness(
@@ -524,7 +536,7 @@ func (s *scraper) collectCurrentSeries(metrics pmetric.Metrics) map[streamIdenti
 					for l := 0; l < dps.Len(); l++ {
 						dp := dps.At(l)
 						id := streamKey(metricID, dp.Attributes())
-						current[id] = newSeriesCacheEntry(metric, dp.Attributes(), dp.StartTimestamp())
+						current[id] = newHistogramSeriesCacheEntry(metric, dp)
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					dps := m.ExponentialHistogram().DataPoints()
@@ -538,7 +550,7 @@ func (s *scraper) collectCurrentSeries(metrics pmetric.Metrics) map[streamIdenti
 					for l := 0; l < dps.Len(); l++ {
 						dp := dps.At(l)
 						id := streamKey(metricID, dp.Attributes())
-						current[id] = newSeriesCacheEntry(metric, dp.Attributes(), dp.StartTimestamp())
+						current[id] = newSummarySeriesCacheEntry(metric, dp)
 					}
 				}
 			}
@@ -610,6 +622,33 @@ func newSeriesCacheEntry(
 		attributes:     copiedAttrs,
 		startTimestamp: startTimestamp,
 	}
+}
+
+func newHistogramSeriesCacheEntry(
+	metric *metricCacheEntry,
+	dp pmetric.HistogramDataPoint,
+) seriesCacheEntry {
+	entry := newSeriesCacheEntry(metric, dp.Attributes(), dp.StartTimestamp())
+	entry.histogramShape = &histogramShape{
+		explicitBounds: append([]float64(nil), dp.ExplicitBounds().AsRaw()...),
+		bucketCount:    dp.BucketCounts().Len(),
+		hasSum:         dp.HasSum(),
+	}
+	return entry
+}
+
+func newSummarySeriesCacheEntry(
+	metric *metricCacheEntry,
+	dp pmetric.SummaryDataPoint,
+) seriesCacheEntry {
+	quantiles := make([]float64, dp.QuantileValues().Len())
+	for i := 0; i < dp.QuantileValues().Len(); i++ {
+		quantiles[i] = dp.QuantileValues().At(i).Quantile()
+	}
+
+	entry := newSeriesCacheEntry(metric, dp.Attributes(), dp.StartTimestamp())
+	entry.summaryShape = &summaryShape{quantiles: quantiles}
+	return entry
 }
 
 func (s *scraper) appendStalePoint(metrics pmetric.Metrics, entry seriesCacheEntry, timestamp pcommon.Timestamp) {
@@ -739,6 +778,13 @@ func setStaleHistogramDataPoint(dp pmetric.HistogramDataPoint, entry seriesCache
 	if entry.startTimestamp != 0 {
 		dp.SetStartTimestamp(entry.startTimestamp)
 	}
+	if entry.histogramShape != nil {
+		dp.ExplicitBounds().FromRaw(entry.histogramShape.explicitBounds)
+		dp.BucketCounts().FromRaw(make([]uint64, entry.histogramShape.bucketCount))
+		if entry.histogramShape.hasSum {
+			dp.SetSum(0)
+		}
+	}
 	dp.SetFlags(pmetric.DefaultDataPointFlags.WithNoRecordedValue(true))
 	entry.attributes.CopyTo(dp.Attributes())
 }
@@ -756,6 +802,13 @@ func setStaleSummaryDataPoint(dp pmetric.SummaryDataPoint, entry seriesCacheEntr
 	dp.SetTimestamp(timestamp)
 	if entry.startTimestamp != 0 {
 		dp.SetStartTimestamp(entry.startTimestamp)
+	}
+	if entry.summaryShape != nil {
+		quantiles := dp.QuantileValues()
+		quantiles.EnsureCapacity(len(entry.summaryShape.quantiles))
+		for _, quantile := range entry.summaryShape.quantiles {
+			quantiles.AppendEmpty().SetQuantile(quantile)
+		}
 	}
 	dp.SetFlags(pmetric.DefaultDataPointFlags.WithNoRecordedValue(true))
 	entry.attributes.CopyTo(dp.Attributes())
