@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -39,9 +40,27 @@ import (
 type scraper struct {
 	logger       *zap.Logger
 	producer     metric.Producer
+	gatherer     *recordingGatherer
 	receiverType string
-	stalenessMu  sync.Mutex
+	scrapeMu     sync.Mutex
 	seriesCache  map[streamIdentity]seriesCacheEntry
+}
+
+// recordingGatherer lets the bridge convert metric families returned by a
+// partially successful gather while retaining the error for staleness logic.
+type recordingGatherer struct {
+	gatherer prometheus.Gatherer
+	err      error
+}
+
+func (g *recordingGatherer) Gather() ([]*dto.MetricFamily, error) {
+	metricFamilies, err := g.gatherer.Gather()
+	g.err = err
+
+	// The OTel Prometheus bridge discards every metric family when Gather
+	// returns an error. Return the valid families and handle the recorded error
+	// after conversion instead.
+	return metricFamilies, nil
 }
 
 func newScraper(
@@ -49,13 +68,15 @@ func newScraper(
 	receiverType component.Type,
 	logger *zap.Logger,
 ) *scraper {
+	gatherer := &recordingGatherer{gatherer: registry}
 	producer := otelbridge.NewMetricProducer(
-		otelbridge.WithGatherer(registry),
+		otelbridge.WithGatherer(gatherer),
 	)
 
 	return &scraper{
 		logger:       logger,
 		producer:     producer,
+		gatherer:     gatherer,
 		receiverType: receiverType.String(),
 		seriesCache:  make(map[streamIdentity]seriesCacheEntry),
 	}
@@ -74,6 +95,9 @@ func (s *scraper) Shutdown(_ context.Context) error {
 // ScrapeMetrics collects metrics from the Prometheus registry and converts them
 // to OpenTelemetry pmetric.Metrics format.
 func (s *scraper) ScrapeMetrics(ctx context.Context) (pmetric.Metrics, error) {
+	s.scrapeMu.Lock()
+	defer s.scrapeMu.Unlock()
+
 	s.logger.Debug("Scraping metrics")
 
 	scopeMetrics, err := s.producer.Produce(ctx)
@@ -82,7 +106,11 @@ func (s *scraper) ScrapeMetrics(ctx context.Context) (pmetric.Metrics, error) {
 	}
 
 	metrics := s.convert(scopeMetrics)
-	s.trackStaleness(metrics, pcommon.Timestamp(time.Now().UnixNano()))
+	gatherSucceeded := s.gatherer.err == nil
+	s.trackStaleness(metrics, pcommon.Timestamp(time.Now().UnixNano()), gatherSucceeded)
+	if !gatherSucceeded {
+		s.logger.Warn("Prometheus registry gather was partially successful", zap.Error(s.gatherer.err))
+	}
 
 	s.logger.Debug("Finished scraping metrics",
 		zap.Int("metrics", metrics.ResourceMetrics().Len()))
@@ -436,11 +464,21 @@ type seriesCacheEntry struct {
 	startTimestamp pcommon.Timestamp
 }
 
-func (s *scraper) trackStaleness(metrics pmetric.Metrics, scrapeTimestamp pcommon.Timestamp) {
-	s.stalenessMu.Lock()
-	defer s.stalenessMu.Unlock()
-
+func (s *scraper) trackStaleness(
+	metrics pmetric.Metrics,
+	scrapeTimestamp pcommon.Timestamp,
+	gatherSucceeded bool,
+) {
 	current := s.collectCurrentSeries(metrics)
+	if !gatherSucceeded {
+		// Missing series may belong to the failing collector. Retain them until a
+		// complete gather can determine whether they are actually stale, while
+		// still tracking new and updated series from successful collectors.
+		for id, entry := range current {
+			s.seriesCache[id] = entry
+		}
+		return
+	}
 
 	for id, cached := range s.seriesCache {
 		if _, found := current[id]; found {
