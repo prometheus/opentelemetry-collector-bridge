@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790638533293,
+  "lastUpdate": 1791074350067,
   "repoUrl": "https://github.com/prometheus/opentelemetry-collector-bridge",
   "entries": {
     "OpenTelemetry Collector Bridge Benchmarks": [
@@ -5568,6 +5568,102 @@ window.BENCHMARK_DATA = {
             "value": 22062,
             "unit": "allocs/op",
             "extra": "6141 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arthursens2005@gmail.com",
+            "name": "Arthur Silva Sens",
+            "username": "ArthurSens"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d4acdbc852af81471807fe4c72def3a72dcf125e",
+          "message": "Merge pull request #97 from prometheus/deps-update/opentelemetry-go-dependencies",
+          "timestamp": "2026-10-03T21:37:43-03:00",
+          "tree_id": "4f81d2b768f27764f0cbe2df6f5bc9eeb171c9d0",
+          "url": "https://github.com/prometheus/opentelemetry-collector-bridge/commit/d4acdbc852af81471807fe4c72def3a72dcf125e"
+        },
+        "date": 1791074348927,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10",
+            "value": 1287160,
+            "unit": "ns/op\t  845465 B/op\t   12063 allocs/op",
+            "extra": "9184 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - ns/op",
+            "value": 1287160,
+            "unit": "ns/op",
+            "extra": "9184 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - B/op",
+            "value": 845465,
+            "unit": "B/op",
+            "extra": "9184 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - allocs/op",
+            "value": 12063,
+            "unit": "allocs/op",
+            "extra": "9184 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10",
+            "value": 2766426,
+            "unit": "ns/op\t 2453455 B/op\t   42363 allocs/op",
+            "extra": "4363 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - ns/op",
+            "value": 2766426,
+            "unit": "ns/op",
+            "extra": "4363 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - B/op",
+            "value": 2453455,
+            "unit": "B/op",
+            "extra": "4363 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - allocs/op",
+            "value": 42363,
+            "unit": "allocs/op",
+            "extra": "4363 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10",
+            "value": 1933284,
+            "unit": "ns/op\t 1370294 B/op\t   22062 allocs/op",
+            "extra": "6145 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - ns/op",
+            "value": 1933284,
+            "unit": "ns/op",
+            "extra": "6145 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - B/op",
+            "value": 1370294,
+            "unit": "B/op",
+            "extra": "6145 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - allocs/op",
+            "value": 22062,
+            "unit": "allocs/op",
+            "extra": "6145 times\n4 procs"
           }
         ]
       }
