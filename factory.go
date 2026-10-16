@@ -205,7 +205,7 @@ func newFactory(
 
 	componentDefaultsFunc := func() component.Config {
 		receiverConfig := createDefaultConfig()
-		receiverConfig.ExporterConfig = cfg.defaultConfig
+		receiverConfig.ExporterConfig = cloneComponentDefaults(cfg.defaultConfig)
 		if cfg.defaultScrapeInterval > 0 {
 			receiverConfig.ScrapeInterval = cfg.defaultScrapeInterval
 		}

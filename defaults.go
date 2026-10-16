@@ -72,6 +72,78 @@ func componentDefaultsFromStruct(cfgStruct any, key fieldKey) map[string]interfa
 	return out
 }
 
+// cloneComponentDefaults returns a recursively independent copy of defaults.
+// Collector factories may create multiple component configs from the same
+// defaults, and the Collector's unmarshaler mutates each config as it overlays
+// user-provided values.
+func cloneComponentDefaults(defaults map[string]interface{}) map[string]interface{} {
+	if defaults == nil {
+		return nil
+	}
+
+	cloned := cloneDefaultValue(reflect.ValueOf(defaults))
+	return cloned.Interface().(map[string]interface{})
+}
+
+func cloneDefaultValue(value reflect.Value) reflect.Value {
+	if !value.IsValid() {
+		return value
+	}
+
+	switch value.Kind() {
+	case reflect.Interface:
+		if value.IsNil() {
+			return reflect.Zero(value.Type())
+		}
+		cloned := reflect.New(value.Type()).Elem()
+		cloned.Set(cloneDefaultValue(value.Elem()))
+		return cloned
+	case reflect.Pointer:
+		if value.IsNil() {
+			return reflect.Zero(value.Type())
+		}
+		cloned := reflect.New(value.Type().Elem())
+		cloned.Elem().Set(cloneDefaultValue(value.Elem()))
+		return cloned
+	case reflect.Map:
+		if value.IsNil() {
+			return reflect.Zero(value.Type())
+		}
+		cloned := reflect.MakeMapWithSize(value.Type(), value.Len())
+		iterator := value.MapRange()
+		for iterator.Next() {
+			cloned.SetMapIndex(iterator.Key(), cloneDefaultValue(iterator.Value()))
+		}
+		return cloned
+	case reflect.Slice:
+		if value.IsNil() {
+			return reflect.Zero(value.Type())
+		}
+		cloned := reflect.MakeSlice(value.Type(), value.Len(), value.Len())
+		for i := range value.Len() {
+			cloned.Index(i).Set(cloneDefaultValue(value.Index(i)))
+		}
+		return cloned
+	case reflect.Array:
+		cloned := reflect.New(value.Type()).Elem()
+		for i := range value.Len() {
+			cloned.Index(i).Set(cloneDefaultValue(value.Index(i)))
+		}
+		return cloned
+	case reflect.Struct:
+		cloned := reflect.New(value.Type()).Elem()
+		cloned.Set(value)
+		for i := range value.NumField() {
+			if cloned.Field(i).CanSet() && value.Type().Field(i).IsExported() {
+				cloned.Field(i).Set(cloneDefaultValue(value.Field(i)))
+			}
+		}
+		return cloned
+	default:
+		return value
+	}
+}
+
 func addStructDefaults(out map[string]interface{}, rv reflect.Value, key fieldKey) {
 	for rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {

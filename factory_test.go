@@ -295,6 +295,40 @@ func TestNewFactory_DefaultConfig(t *testing.T) {
 	}
 }
 
+func TestNewFactory_DefaultConfigsAreIndependent(t *testing.T) {
+	defaults := map[string]interface{}{
+		"endpoint": "first",
+		"nested": map[string]interface{}{
+			"enabled": true,
+		},
+		"items": []string{"one", "two"},
+	}
+	factory := NewFactory(
+		component.MustNewType("test"),
+		&mockLifecycleManager{},
+		&mockConfigUnmarshaler{},
+		WithComponentDefaults(defaults),
+	)
+
+	first := factory.CreateDefaultConfig().(*ReceiverConfig)
+	second := factory.CreateDefaultConfig().(*ReceiverConfig)
+
+	first.ExporterConfig["endpoint"] = "changed"
+	first.ExporterConfig["nested"].(map[string]interface{})["enabled"] = false
+	first.ExporterConfig["items"].([]string)[0] = "changed"
+
+	want := map[string]interface{}{
+		"endpoint": "first",
+		"nested": map[string]interface{}{
+			"enabled": true,
+		},
+		"items": []string{"one", "two"},
+	}
+	if !reflect.DeepEqual(second.ExporterConfig, want) {
+		t.Fatalf("mutating one default config changed another.\n got: %#v\nwant: %#v", second.ExporterConfig, want)
+	}
+}
+
 func TestWithDefaultScrapeInterval(t *testing.T) {
 	factory := NewFactory(
 		component.MustNewType("test"),
