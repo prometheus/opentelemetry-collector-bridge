@@ -30,22 +30,22 @@ import (
 
 // mockLifecycleManager is a test implementation of ExporterLifecycleManager.
 type mockLifecycleManager struct {
-	startFunc    func(ctx context.Context, set receiver.Settings, cfg any) (*prometheus.Registry, error)
-	shutdownFunc func(ctx context.Context) error
+	startFunc func(
+		ctx context.Context,
+		set receiver.Settings,
+		cfg any,
+	) (*prometheus.Registry, component.ShutdownFunc, error)
 }
 
-func (m *mockLifecycleManager) Start(ctx context.Context, set receiver.Settings, cfg any) (*prometheus.Registry, error) {
+func (m *mockLifecycleManager) Start(
+	ctx context.Context,
+	set receiver.Settings,
+	cfg any,
+) (*prometheus.Registry, component.ShutdownFunc, error) {
 	if m.startFunc != nil {
 		return m.startFunc(ctx, set, cfg)
 	}
-	return prometheus.NewRegistry(), nil
-}
-
-func (m *mockLifecycleManager) Shutdown(ctx context.Context) error {
-	if m.shutdownFunc != nil {
-		return m.shutdownFunc(ctx)
-	}
-	return nil
+	return prometheus.NewRegistry(), nil, nil
 }
 
 // mockConfigUnmarshaler is a test implementation of ConfigUnmarshaler.

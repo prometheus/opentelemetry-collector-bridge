@@ -31,7 +31,7 @@ func TestEndToEnd_FullReceiverPipeline(t *testing.T) {
 	var startID, shutdownID component.ID
 	var shutdownSettings receiver.Settings
 	lifecycleManager := &mockLifecycleManager{
-		startFunc: func(_ context.Context, set receiver.Settings, _ any) (*prometheus.Registry, error) {
+		startFunc: func(_ context.Context, set receiver.Settings, _ any) (*prometheus.Registry, component.ShutdownFunc, error) {
 			startID = set.ID
 			shutdownSettings = set
 			reg := prometheus.NewRegistry()
@@ -49,12 +49,11 @@ func TestEndToEnd_FullReceiverPipeline(t *testing.T) {
 			counter.Add(1500)
 			gauge.Set(42)
 
-			return reg, nil
-		},
-		shutdownFunc: func(_ context.Context) error {
-			shutdownID = shutdownSettings.ID
-			shutdownCalled = true
-			return nil
+			return reg, func(_ context.Context) error {
+				shutdownID = shutdownSettings.ID
+				shutdownCalled = true
+				return nil
+			}, nil
 		},
 	}
 
@@ -121,7 +120,7 @@ func TestEndToEnd_FullReceiverPipeline(t *testing.T) {
 
 func TestEndToEnd_MultipleScrapes(t *testing.T) {
 	lifecycleManager := &mockLifecycleManager{
-		startFunc: func(_ context.Context, _ receiver.Settings, _ any) (*prometheus.Registry, error) {
+		startFunc: func(_ context.Context, _ receiver.Settings, _ any) (*prometheus.Registry, component.ShutdownFunc, error) {
 			reg := prometheus.NewRegistry()
 			gauge := prometheus.NewGauge(prometheus.GaugeOpts{
 				Name: "scrape_test_metric",
@@ -129,7 +128,7 @@ func TestEndToEnd_MultipleScrapes(t *testing.T) {
 			})
 			reg.MustRegister(gauge)
 			gauge.Set(1)
-			return reg, nil
+			return reg, nil, nil
 		},
 	}
 
@@ -170,5 +169,71 @@ func TestEndToEnd_MultipleScrapes(t *testing.T) {
 	err = receiver.Shutdown(context.Background())
 	if err != nil {
 		t.Fatalf("Shutdown() failed: %v", err)
+	}
+}
+
+func TestEndToEnd_ReceiverInstancesOwnTheirShutdown(t *testing.T) {
+	shutdownCalls := map[component.ID]int{}
+	lifecycleManager := &mockLifecycleManager{
+		startFunc: func(_ context.Context, set receiver.Settings, _ any) (*prometheus.Registry, component.ShutdownFunc, error) {
+			id := set.ID
+			return prometheus.NewRegistry(), func(_ context.Context) error {
+				shutdownCalls[id]++
+				return nil
+			}, nil
+		},
+	}
+
+	receiverType := component.MustNewType("multiinstance")
+	factory := NewFactory(receiverType, lifecycleManager, &mockConfigUnmarshaler{})
+	consumer := new(consumertest.MetricsSink)
+
+	firstSettings := receivertest.NewNopSettings(receiverType)
+	firstSettings.ID = component.NewIDWithName(receiverType, "first")
+	first, err := factory.CreateMetrics(
+		context.Background(),
+		firstSettings,
+		&ReceiverConfig{ScrapeInterval: time.Hour},
+		consumer,
+	)
+	if err != nil {
+		t.Fatalf("CreateMetrics() for first receiver failed: %v", err)
+	}
+
+	secondSettings := receivertest.NewNopSettings(receiverType)
+	secondSettings.ID = component.NewIDWithName(receiverType, "second")
+	second, err := factory.CreateMetrics(
+		context.Background(),
+		secondSettings,
+		&ReceiverConfig{ScrapeInterval: time.Hour},
+		consumer,
+	)
+	if err != nil {
+		t.Fatalf("CreateMetrics() for second receiver failed: %v", err)
+	}
+
+	host := componenttest.NewNopHost()
+	if err := first.Start(context.Background(), host); err != nil {
+		t.Fatalf("Start() for first receiver failed: %v", err)
+	}
+	if err := second.Start(context.Background(), host); err != nil {
+		t.Fatalf("Start() for second receiver failed: %v", err)
+	}
+
+	if err := first.Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown() for first receiver failed: %v", err)
+	}
+	if got := shutdownCalls[firstSettings.ID]; got != 1 {
+		t.Errorf("first receiver shutdown calls = %d, want 1", got)
+	}
+	if got := shutdownCalls[secondSettings.ID]; got != 0 {
+		t.Errorf("second receiver shutdown calls = %d before its shutdown, want 0", got)
+	}
+
+	if err := second.Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown() for second receiver failed: %v", err)
+	}
+	if got := shutdownCalls[secondSettings.ID]; got != 1 {
+		t.Errorf("second receiver shutdown calls = %d, want 1", got)
 	}
 }

@@ -28,14 +28,14 @@ import (
 // ExporterLifecycleManager is the interface that Prometheus exporters must implement
 // to be embedded in the OTel Collector.
 type ExporterLifecycleManager interface {
-	// Start sets up the exporter and returns a prometheus.Registry
-	// containing all the metrics collectors.
-	Start(ctx context.Context, set receiver.Settings, exporterConfig any) (*prometheus.Registry, error)
-
-	// Shutdown is used to release resources when the receiver is shutting down.
-	// Implementations that need receiver settings during shutdown should retain
-	// them from Start.
-	Shutdown(ctx context.Context) error
+	// Start sets up one exporter instance and returns its prometheus.Registry
+	// and optional shutdown function. The shutdown function must release only
+	// the resources acquired for this Start call.
+	Start(
+		ctx context.Context,
+		set receiver.Settings,
+		exporterConfig any,
+	) (*prometheus.Registry, component.ShutdownFunc, error)
 }
 
 // ConfigUnmarshaler is the interface used to unmarshal the exporter-specific

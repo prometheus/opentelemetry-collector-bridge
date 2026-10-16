@@ -15,6 +15,7 @@ package prometheuscollectorbridge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -33,6 +34,7 @@ type prometheusReceiver struct {
 	lifecycleManager ExporterLifecycleManager
 	scraper          *scraper
 	controller       receiver.Metrics
+	shutdownExporter component.ShutdownFunc
 
 	registry *prometheus.Registry
 }
@@ -56,11 +58,12 @@ func newPrometheusReceiver(
 func (r *prometheusReceiver) Start(ctx context.Context, host component.Host) error {
 	r.settings.Logger.Info("Starting Prometheus exporter receiver")
 
-	registry, err := r.lifecycleManager.Start(ctx, r.settings, r.config.exporterConfigInstance)
+	registry, shutdown, err := r.lifecycleManager.Start(ctx, r.settings, r.config.exporterConfigInstance)
 	if err != nil {
 		return fmt.Errorf("failed to start exporter: %w", err)
 	}
 	r.registry = registry
+	r.shutdownExporter = shutdown
 
 	r.scraper = newScraper(
 		r.registry,
@@ -75,31 +78,52 @@ func (r *prometheusReceiver) Start(ctx context.Context, host component.Host) err
 		scraperhelper.AddMetricsScraper(r.settings.ID.Type(), r.scraper),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create scraper controller: %w", err)
+		return errors.Join(
+			fmt.Errorf("failed to create scraper controller: %w", err),
+			r.stopExporter(ctx),
+		)
 	}
 	r.controller = ctrl
 
 	r.settings.Logger.Info("Prometheus exporter receiver started successfully")
-	return r.controller.Start(ctx, host)
+	if err := r.controller.Start(ctx, host); err != nil {
+		return errors.Join(err, r.stopExporter(ctx))
+	}
+	return nil
 }
 
 // Shutdown stops the receiver's operation.
 func (r *prometheusReceiver) Shutdown(ctx context.Context) error {
 	r.settings.Logger.Info("Shutting down Prometheus exporter receiver")
 
+	var errs []error
 	if r.controller != nil {
 		if err := r.controller.Shutdown(ctx); err != nil {
-			return fmt.Errorf("failed to shutdown scraper controller: %w", err)
+			errs = append(errs, fmt.Errorf("failed to shutdown scraper controller: %w", err))
 		}
 	}
 
-	if r.lifecycleManager != nil {
-		if err := r.lifecycleManager.Shutdown(ctx); err != nil {
-			r.settings.Logger.Error("Failed to shutdown exporter", zap.Error(err))
-			return fmt.Errorf("failed to shutdown exporter: %w", err)
-		}
+	if err := r.stopExporter(ctx); err != nil {
+		r.settings.Logger.Error("Failed to shutdown exporter", zap.Error(err))
+		errs = append(errs, err)
 	}
 
+	if err := errors.Join(errs...); err != nil {
+		return err
+	}
 	r.settings.Logger.Info("Prometheus exporter receiver shut down successfully")
+	return nil
+}
+
+func (r *prometheusReceiver) stopExporter(ctx context.Context) error {
+	if r.shutdownExporter == nil {
+		return nil
+	}
+
+	shutdown := r.shutdownExporter
+	r.shutdownExporter = nil
+	if err := shutdown(ctx); err != nil {
+		return fmt.Errorf("failed to shutdown exporter: %w", err)
+	}
 	return nil
 }

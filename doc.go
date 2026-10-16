@@ -37,27 +37,25 @@
 //
 // Manages the exporter's lifecycle. Start is called once at receiver start;
 // it returns a *prometheus.Registry that the bridge scrapes for the lifetime
-// of the receiver. Shutdown is called once when the receiver stops; release
-// any resources Start acquired (goroutines, network connections, etc.).
+// of the receiver and an optional component.ShutdownFunc. The bridge retains
+// that function on the receiver instance and calls it when that receiver stops.
+// The shutdown function must release only the resources acquired by its Start
+// call (goroutines, network connections, etc.).
 //
-//	type MyExporterLifecycleManager struct {
-//	    settings receiver.Settings
-//	}
+//	type MyExporterLifecycleManager struct{}
 //
-//	func (m *MyExporterLifecycleManager) Start(ctx context.Context, set receiver.Settings, cfg any) (*prometheus.Registry, error) {
-//	    m.settings = set
+//	func (m *MyExporterLifecycleManager) Start(ctx context.Context, set receiver.Settings, cfg any) (*prometheus.Registry, component.ShutdownFunc, error) {
 //	    exporterCfg, ok := cfg.(*MyConfig)
 //	    if !ok {
-//	        return nil, fmt.Errorf("expected *MyConfig, got %T", cfg)
+//	        return nil, nil, fmt.Errorf("expected *MyConfig, got %T", cfg)
+//	    }
+//	    runtime, err := newRuntime(ctx, set, exporterCfg)
+//	    if err != nil {
+//	        return nil, nil, err
 //	    }
 //	    registry := prometheus.NewRegistry()
-//	    // Build collectors using exporterCfg and register them on the registry.
-//	    return registry, nil
-//	}
-//
-//	func (m *MyExporterLifecycleManager) Shutdown(ctx context.Context) error {
-//	    // Stop goroutines or release resources Start owned.
-//	    return nil
+//	    // Register collectors owned by runtime on the registry.
+//	    return registry, runtime.Shutdown, nil
 //	}
 //
 // ## Config decoding: three approaches
