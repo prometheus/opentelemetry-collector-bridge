@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792069869351,
+  "lastUpdate": 1792431761715,
   "repoUrl": "https://github.com/prometheus/opentelemetry-collector-bridge",
   "entries": {
     "OpenTelemetry Collector Bridge Benchmarks": [
@@ -5952,6 +5952,102 @@ window.BENCHMARK_DATA = {
             "value": 22062,
             "unit": "allocs/op",
             "extra": "8803 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arthursens2005@gmail.com",
+            "name": "Arthur Silva Sens",
+            "username": "ArthurSens"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "db2118a746418394de8d3cffd742ff93e903c424",
+          "message": "Merge pull request #103 from prometheus/codex/per-receiver-lifecycle\n\nReturn per-receiver exporter shutdown handles",
+          "timestamp": "2026-10-19T14:41:14-03:00",
+          "tree_id": "6ee8f8f2f2b2e508c276a5d2d669448bd42054fa",
+          "url": "https://github.com/prometheus/opentelemetry-collector-bridge/commit/db2118a746418394de8d3cffd742ff93e903c424"
+        },
+        "date": 1792431760876,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10",
+            "value": 1251432,
+            "unit": "ns/op\t  845464 B/op\t   12063 allocs/op",
+            "extra": "9441 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - ns/op",
+            "value": 1251432,
+            "unit": "ns/op",
+            "extra": "9441 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - B/op",
+            "value": 845464,
+            "unit": "B/op",
+            "extra": "9441 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/counters/metrics_100/cardinality_10 - allocs/op",
+            "value": 12063,
+            "unit": "allocs/op",
+            "extra": "9441 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10",
+            "value": 2677546,
+            "unit": "ns/op\t 2453452 B/op\t   42363 allocs/op",
+            "extra": "4539 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - ns/op",
+            "value": 2677546,
+            "unit": "ns/op",
+            "extra": "4539 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - B/op",
+            "value": 2453452,
+            "unit": "B/op",
+            "extra": "4539 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/histograms/metrics_100/cardinality_10 - allocs/op",
+            "value": 42363,
+            "unit": "allocs/op",
+            "extra": "4539 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10",
+            "value": 1876207,
+            "unit": "ns/op\t 1370292 B/op\t   22062 allocs/op",
+            "extra": "6381 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - ns/op",
+            "value": 1876207,
+            "unit": "ns/op",
+            "extra": "6381 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - B/op",
+            "value": 1370292,
+            "unit": "B/op",
+            "extra": "6381 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkScrapeAndExport/mixed/metrics_100/cardinality_10 - allocs/op",
+            "value": 22062,
+            "unit": "allocs/op",
+            "extra": "6381 times\n4 procs"
           }
         ]
       }
