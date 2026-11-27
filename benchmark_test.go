@@ -21,6 +21,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer/consumertest"
+	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
 )
 
@@ -237,4 +238,102 @@ func BenchmarkScrapeAndExport(b *testing.B) {
 			}
 		})
 	}
+}
+
+func BenchmarkScrapeWithStaleness(b *testing.B) {
+	const cardinality = 1000
+
+	ctx := context.Background()
+	registry := prometheus.NewRegistry()
+	gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "benchmark_staleness_gauge",
+		Help: "Benchmark staleness gauge",
+	}, []string{"series"})
+	registry.MustRegister(gauge)
+
+	labels := make([]string, cardinality)
+	for i := range labels {
+		labels[i] = benchmarkSeriesLabel(i)
+		gauge.WithLabelValues(labels[i]).Set(float64(i))
+	}
+
+	s := newScraper(registry, component.MustNewType("bench"), zap.NewNop())
+	consumer := consumertest.NewNop()
+
+	// Verify that the benchmark setup exercises stale-marker emission.
+	if _, err := s.ScrapeMetrics(ctx); err != nil {
+		b.Fatalf("initial ScrapeMetrics() failed: %v", err)
+	}
+	deleteBenchmarkSeries(b, gauge, labels)
+	staleMetrics, err := s.ScrapeMetrics(ctx)
+	if err != nil {
+		b.Fatalf("stale ScrapeMetrics() failed: %v", err)
+	}
+	if got := countStaleDataPoints(staleMetrics); got != cardinality {
+		b.Fatalf("stale data points = %d, want %d", got, cardinality)
+	}
+	restoreBenchmarkSeries(gauge, labels)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		metrics, err := s.ScrapeMetrics(ctx)
+		if err != nil {
+			b.Fatalf("active ScrapeMetrics() failed: %v", err)
+		}
+		if err := consumer.ConsumeMetrics(ctx, metrics); err != nil {
+			b.Fatalf("ConsumeMetrics() failed: %v", err)
+		}
+
+		b.StopTimer()
+		deleteBenchmarkSeries(b, gauge, labels)
+		b.StartTimer()
+
+		metrics, err = s.ScrapeMetrics(ctx)
+		if err != nil {
+			b.Fatalf("stale ScrapeMetrics() failed: %v", err)
+		}
+		if err := consumer.ConsumeMetrics(ctx, metrics); err != nil {
+			b.Fatalf("ConsumeMetrics() failed: %v", err)
+		}
+
+		b.StopTimer()
+		restoreBenchmarkSeries(gauge, labels)
+		b.StartTimer()
+	}
+}
+
+func deleteBenchmarkSeries(b *testing.B, gauge *prometheus.GaugeVec, labels []string) {
+	b.Helper()
+	for _, label := range labels {
+		if !gauge.DeleteLabelValues(label) {
+			b.Fatalf("failed to delete label value %q", label)
+		}
+	}
+}
+
+func restoreBenchmarkSeries(gauge *prometheus.GaugeVec, labels []string) {
+	for i, label := range labels {
+		gauge.WithLabelValues(label).Set(float64(i))
+	}
+}
+
+func countStaleDataPoints(metrics pmetric.Metrics) int {
+	count := 0
+	for i := 0; i < metrics.ResourceMetrics().Len(); i++ {
+		rm := metrics.ResourceMetrics().At(i)
+		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
+			sm := rm.ScopeMetrics().At(j)
+			for k := 0; k < sm.Metrics().Len(); k++ {
+				dps := sm.Metrics().At(k).Gauge().DataPoints()
+				for l := 0; l < dps.Len(); l++ {
+					if dps.At(l).Flags().NoRecordedValue() {
+						count++
+					}
+				}
+			}
+		}
+	}
+	return count
 }
